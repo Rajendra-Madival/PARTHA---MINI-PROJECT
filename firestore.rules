@@ -1,0 +1,625 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4.1: Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'rajendramadival7@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll([
+          'uid', 'role', 'name', 'email', 'subtitle', 'usn', 'branch',
+          'semester', 'targetSkills', 'targetDomain', 'targetCompany',
+          'lookingForInternship', 'lookingForProjectHelp', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'role', 'name', 'email', 'subtitle', 'usn', 'branch',
+          'semester', 'targetSkills', 'targetDomain', 'targetCompany',
+          'lookingForInternship', 'lookingForProjectHelp', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.role in ['student', 'alumni', 'admin']
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.subtitle is string && data.subtitle.size() <= 160
+        && data.usn is string && data.usn.size() <= 40
+        && data.branch in ['CSE', 'ISE', 'ECE', 'ME', 'EEE']
+        && data.semester is int && data.semester >= 1 && data.semester <= 8
+        && data.targetSkills is list && data.targetSkills.size() <= 15
+        && (data.targetSkills.size() == 0 || data.targetSkills[0] is string)
+        && data.targetDomain is string && data.targetDomain.size() <= 100
+        && data.targetCompany is string && data.targetCompany.size() <= 100
+        && data.lookingForInternship is bool
+        && data.lookingForProjectHelp is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBookmark(data) {
+      return data.keys().hasAll(['ownerUid', 'targetId', 'kind', 'createdAt'])
+        && data.keys().hasOnly(['ownerUid', 'targetId', 'kind', 'createdAt'])
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128
+        && data.kind in ['alumni', 'opportunity']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'grantedAt'])
+        && data.keys().hasOnly(['email', 'grantedAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.grantedAt is timestamp;
+    }
+
+    function isValidAlumni(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'graduationYear', 'branch', 'role',
+          'company', 'domain', 'skills', 'location', 'openToInternshipReferrals',
+          'openToProjectMentoring', 'sharedProjectGuidesCount', 'bio',
+          'regNumber', 'verificationStatus', 'source', 'submittedAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'graduationYear', 'branch', 'role',
+          'company', 'domain', 'skills', 'location', 'openToInternshipReferrals',
+          'openToProjectMentoring', 'sharedProjectGuidesCount', 'bio',
+          'regNumber', 'verificationStatus', 'source', 'submittedAt', 'updatedAt'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.graduationYear is int && data.graduationYear >= 1995 && data.graduationYear <= 2035
+        && data.branch in ['CSE', 'ISE', 'ECE', 'ME', 'EEE']
+        && data.role is string && data.role.size() >= 1 && data.role.size() <= 120
+        && data.company is string && data.company.size() >= 1 && data.company.size() <= 120
+        && data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 100
+        && data.skills is list && data.skills.size() <= 20
+        && (data.skills.size() == 0 || data.skills[0] is string)
+        && data.location is string && data.location.size() <= 100
+        && data.openToInternshipReferrals is bool
+        && data.openToProjectMentoring is bool
+        && data.sharedProjectGuidesCount is int && data.sharedProjectGuidesCount >= 0 && data.sharedProjectGuidesCount <= 500
+        && data.bio is string && data.bio.size() <= 1000
+        && data.regNumber is string && data.regNumber.size() <= 40
+        && data.verificationStatus in ['pending', 'verified', 'rejected']
+        && data.source in ['self-registered', 'google-form', 'admin-added']
+        && data.submittedAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAlumniContact(data) {
+      return data.keys().hasAll(['alumniId', 'ownerUid', 'email', 'phone', 'linkedinUrl', 'updatedAt'])
+        && data.keys().hasOnly(['alumniId', 'ownerUid', 'email', 'phone', 'linkedinUrl', 'updatedAt'])
+        && data.alumniId is string && data.alumniId.size() >= 1 && data.alumniId.size() <= 128
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.email is string && data.email.size() <= 160
+        && data.phone is string && data.phone.size() <= 40
+        && data.linkedinUrl is string && data.linkedinUrl.size() <= 300
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSessionBooking(booking) {
+      return booking == null || (
+        booking is map
+        && booking.keys().hasAll(['id', 'slotLabel', 'topic', 'status', 'meetingLink', 'bookedAt'])
+        && booking.keys().hasOnly(['id', 'slotLabel', 'topic', 'status', 'meetingLink', 'bookedAt'])
+        && booking.id is string && booking.id.size() >= 1 && booking.id.size() <= 80
+        && booking.slotLabel is string && booking.slotLabel.size() >= 1 && booking.slotLabel.size() <= 120
+        && booking.topic is string && booking.topic.size() <= 200
+        && booking.status in ['requested', 'confirmed']
+        && booking.meetingLink is string && booking.meetingLink.size() <= 300
+        && booking.bookedAt is string && booking.bookedAt.size() <= 80
+      );
+    }
+
+    function isValidMentorship(data) {
+      return data.keys().hasAll([
+          'id', 'studentId', 'studentName', 'studentBranch', 'studentSemester',
+          'studentUsn', 'alumniId', 'alumniOwnerUid', 'alumniName', 'alumniRole',
+          'alumniCompany', 'alumniBranch', 'alumniGraduationYear', 'goal',
+          'message', 'status', 'sessionBooking', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'studentId', 'studentName', 'studentBranch', 'studentSemester',
+          'studentUsn', 'alumniId', 'alumniOwnerUid', 'alumniName', 'alumniRole',
+          'alumniCompany', 'alumniBranch', 'alumniGraduationYear', 'goal',
+          'message', 'status', 'sessionBooking', 'createdAt', 'updatedAt', 'respondedAt'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.studentId is string && data.studentId.size() >= 1 && data.studentId.size() <= 128
+        && data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120
+        && data.studentBranch in ['CSE', 'ISE', 'ECE', 'ME', 'EEE']
+        && data.studentSemester is int && data.studentSemester >= 1 && data.studentSemester <= 8
+        && data.studentUsn is string && data.studentUsn.size() <= 40
+        && data.alumniId is string && data.alumniId.size() >= 1 && data.alumniId.size() <= 128
+        && data.alumniOwnerUid is string && data.alumniOwnerUid.size() >= 1 && data.alumniOwnerUid.size() <= 128
+        && data.alumniName is string && data.alumniName.size() >= 1 && data.alumniName.size() <= 120
+        && data.alumniRole is string && data.alumniRole.size() >= 1 && data.alumniRole.size() <= 120
+        && data.alumniCompany is string && data.alumniCompany.size() >= 1 && data.alumniCompany.size() <= 120
+        && data.alumniBranch in ['CSE', 'ISE', 'ECE', 'ME', 'EEE']
+        && data.alumniGraduationYear is int && data.alumniGraduationYear >= 1995 && data.alumniGraduationYear <= 2035
+        && data.goal in ['Career Guidance', 'Resume Review', 'Internship Referral', 'Project Help']
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 1000
+        && data.status in ['pending', 'accepted', 'declined']
+        && isValidSessionBooking(data.sessionBooking)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('respondedAt' in data) || data.respondedAt is timestamp);
+    }
+
+    function isValidMentorshipMessage(data) {
+      return data.keys().hasAll([
+          'id', 'studentId', 'alumniOwnerUid', 'senderId',
+          'senderName', 'senderRole', 'text', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'studentId', 'alumniOwnerUid', 'senderId',
+          'senderName', 'senderRole', 'text', 'createdAt'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.studentId is string && data.studentId.size() >= 1 && data.studentId.size() <= 128
+        && data.alumniOwnerUid is string && data.alumniOwnerUid.size() >= 1 && data.alumniOwnerUid.size() <= 128
+        && data.senderId is string && data.senderId == request.auth.uid
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 120
+        && data.senderRole in ['student', 'alumni']
+        && data.text is string && data.text.size() >= 1 && data.text.size() <= 1000
+        && data.createdAt is timestamp;
+    }
+
+    function isValidOpportunity(data) {
+      return data.keys().hasAll([
+          'id', 'title', 'company', 'type', 'domain', 'location',
+          'stipendOrCtc', 'skills', 'description', 'applyUrl',
+          'postedById', 'postedByAlumniId', 'postedByName', 'postedByRole',
+          'isRemote', 'isPublished', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'title', 'company', 'type', 'domain', 'location',
+          'stipendOrCtc', 'skills', 'description', 'applyUrl',
+          'postedById', 'postedByAlumniId', 'postedByName', 'postedByRole',
+          'isRemote', 'isPublished', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.company is string && data.company.size() >= 1 && data.company.size() <= 120
+        && data.type in ['Internship', 'Full-time Job', 'Collaborative Project']
+        && data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 100
+        && data.location is string && data.location.size() <= 100
+        && data.stipendOrCtc is string && data.stipendOrCtc.size() <= 80
+        && data.skills is list && data.skills.size() <= 15
+        && (data.skills.size() == 0 || data.skills[0] is string)
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 2000
+        && data.applyUrl is string && data.applyUrl.size() <= 300
+        && data.postedById is string && data.postedById.size() >= 1 && data.postedById.size() <= 128
+        && data.postedByAlumniId is string && data.postedByAlumniId.size() <= 128
+        && data.postedByName is string && data.postedByName.size() >= 1 && data.postedByName.size() <= 120
+        && data.postedByRole is string && data.postedByRole.size() >= 1 && data.postedByRole.size() <= 120
+        && data.isRemote is bool
+        && data.isPublished is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGuide(data) {
+      return data.keys().hasAll([
+          'id', 'title', 'domain', 'summary', 'content', 'readTimeMinutes',
+          'authorId', 'authorAlumniId', 'authorName', 'authorRole',
+          'authorCompany', 'authorBatch', 'upvotes', 'isPublished', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'title', 'domain', 'summary', 'content', 'readTimeMinutes',
+          'authorId', 'authorAlumniId', 'authorName', 'authorRole',
+          'authorCompany', 'authorBatch', 'upvotes', 'isPublished', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 100
+        && data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 400
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 8000
+        && data.readTimeMinutes is int && data.readTimeMinutes >= 1 && data.readTimeMinutes <= 60
+        && data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128
+        && data.authorAlumniId is string && data.authorAlumniId.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120
+        && data.authorRole is string && data.authorRole.size() >= 1 && data.authorRole.size() <= 120
+        && data.authorCompany is string && data.authorCompany.size() >= 1 && data.authorCompany.size() <= 120
+        && data.authorBatch is string && data.authorBatch.size() <= 40
+        && data.upvotes is int && data.upvotes >= 0 && data.upvotes <= 100000
+        && data.isPublished is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGuideUpvote(data) {
+      return data.keys().hasAll(['uid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'createdAt'])
+        && data.uid is string && data.uid == request.auth.uid
+        && data.createdAt is timestamp;
+    }
+
+    function isValidSeniorForm(data) {
+      return data.keys().hasAll(['formId', 'title', 'responderUri', 'editUri', 'createdByUid', 'createdByEmail', 'createdAt'])
+        && data.keys().hasOnly(['formId', 'title', 'responderUri', 'editUri', 'createdByUid', 'createdByEmail', 'createdAt'])
+        && data.formId is string && data.formId.size() >= 1 && data.formId.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.responderUri is string && data.responderUri.size() >= 1 && data.responderUri.size() <= 400
+        && data.editUri is string && data.editUri.size() >= 1 && data.editUri.size() <= 400
+        && data.createdByUid is string && data.createdByUid == request.auth.uid
+        && data.createdByEmail is string && data.createdByEmail.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    function isValidImportedMarker(data) {
+      return data.keys().hasAll(['responseId', 'alumniId', 'createdByUid', 'importedAt'])
+        && data.keys().hasOnly(['responseId', 'alumniId', 'createdByUid', 'importedAt'])
+        && data.responseId is string && data.responseId.size() >= 1 && data.responseId.size() <= 128
+        && data.alumniId is string && data.alumniId.size() >= 1 && data.alumniId.size() <= 128
+        && data.createdByUid is string && data.createdByUid == request.auth.uid
+        && data.importedAt is timestamp;
+    }
+
+    // Collection: /users/{userId}
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isValidId(userId)
+        && isSignedIn()
+        && isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role in ['student', 'alumni'] || (incoming().role == 'admin' && isAdmin()));
+      allow update: if isValidId(userId)
+        && isSignedIn()
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId)
+            && (incoming().role == existing().role || incoming().role in ['student', 'alumni'])
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'role', 'name', 'subtitle', 'usn', 'branch', 'semester',
+              'targetSkills', 'targetDomain', 'targetCompany',
+              'lookingForInternship', 'lookingForProjectHelp', 'updatedAt'
+            ])
+          )
+        );
+
+      match /bookmarks/{bookmarkId} {
+        allow get: if isValidId(userId) && isValidId(bookmarkId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerUid == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(bookmarkId)
+          && isSignedIn()
+          && isOwner(userId)
+          && isValidBookmark(incoming())
+          && incoming().ownerUid == request.auth.uid
+          && incoming().createdAt == request.time;
+        allow delete: if isValidId(userId) && isValidId(bookmarkId) && isSignedIn() && isOwner(userId);
+      }
+    }
+
+    // Collection: /admins/{userId}
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create, update: if isValidId(userId)
+        && isBootstrapAdmin()
+        && isValidAdmin(incoming())
+        && incoming().grantedAt == request.time;
+      allow delete: if isValidId(userId) && isBootstrapAdmin();
+    }
+
+    // Collection: /alumni/{alumniId}
+    match /alumni/{alumniId} {
+      allow get: if isValidId(alumniId)
+        && isSignedIn()
+        && (existing().verificationStatus == 'verified' || existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn()
+        && (resource.data.verificationStatus == 'verified' || resource.data.ownerUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isValidId(alumniId)
+        && isSignedIn()
+        && isValidAlumni(incoming())
+        && incoming().id == alumniId
+        && incoming().submittedAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().ownerUid == request.auth.uid && incoming().verificationStatus == 'pending' && incoming().sharedProjectGuidesCount == 0 && incoming().source == 'self-registered')
+          || isAdmin()
+        );
+      allow update: if isValidId(alumniId)
+        && isSignedIn()
+        && isValidAlumni(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().submittedAt == existing().submittedAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            existing().ownerUid == request.auth.uid
+            && incoming().verificationStatus == existing().verificationStatus
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'graduationYear', 'branch', 'regNumber',
+              'openToInternshipReferrals', 'openToProjectMentoring', 'bio',
+              'skills', 'role', 'company', 'domain', 'location',
+              'sharedProjectGuidesCount', 'updatedAt'
+            ])
+          )
+        );
+
+      match /private/contact {
+        allow get: if isValidId(alumniId)
+          && isSignedIn()
+          && (
+            get(/databases/$(database)/documents/alumni/$(alumniId)).data.ownerUid == request.auth.uid
+            || isAdmin()
+            || (
+              exists(/databases/$(database)/documents/mentorships/$(request.auth.uid + '__' + alumniId))
+              && get(/databases/$(database)/documents/mentorships/$(request.auth.uid + '__' + alumniId)).data.status == 'accepted'
+            )
+          );
+        allow list: if false;
+        allow create, update: if isValidId(alumniId)
+          && isSignedIn()
+          && isValidAlumniContact(incoming())
+          && incoming().alumniId == alumniId
+          && incoming().updatedAt == request.time
+          && (
+            getAfter(/databases/$(database)/documents/alumni/$(alumniId)).data.ownerUid == request.auth.uid
+            || isAdmin()
+          );
+      }
+    }
+
+    // Collection: /mentorships/{mentorshipId}
+    match /mentorships/{mentorshipId} {
+      allow get: if isValidId(mentorshipId)
+        && isSignedIn()
+        && (existing().studentId == request.auth.uid || existing().alumniOwnerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn()
+        && (resource.data.studentId == request.auth.uid || resource.data.alumniOwnerUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isValidId(mentorshipId)
+        && isSignedIn()
+        && isValidMentorship(incoming())
+        && incoming().id == mentorshipId
+        && mentorshipId == (request.auth.uid + '__' + incoming().alumniId)
+        && incoming().studentId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().sessionBooking == null
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/alumni/$(incoming().alumniId))
+        && get(/databases/$(database)/documents/alumni/$(incoming().alumniId)).data.verificationStatus == 'verified'
+        && get(/databases/$(database)/documents/alumni/$(incoming().alumniId)).data.ownerUid == incoming().alumniOwnerUid;
+      allow update: if isValidId(mentorshipId)
+        && isSignedIn()
+        && isValidMentorship(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().alumniId == existing().alumniId
+        && incoming().alumniOwnerUid == existing().alumniOwnerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && existing().status != 'declined'
+        && (
+          isAdmin()
+          || (
+            existing().alumniOwnerUid == request.auth.uid
+            && existing().status == 'pending'
+            && incoming().status in ['accepted', 'declined']
+            && incoming().respondedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt', 'updatedAt'])
+          )
+          || (
+            existing().alumniOwnerUid == request.auth.uid
+            && existing().status == 'accepted'
+            && incoming().status == 'accepted'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['sessionBooking', 'updatedAt'])
+          )
+          || (
+            existing().studentId == request.auth.uid
+            && existing().status == 'accepted'
+            && incoming().status == 'accepted'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['sessionBooking', 'updatedAt'])
+          )
+        );
+
+      match /messages/{messageId} {
+        allow get: if isValidId(mentorshipId)
+          && isValidId(messageId)
+          && isSignedIn()
+          && (
+            get(/databases/$(database)/documents/mentorships/$(mentorshipId)).data.studentId == request.auth.uid
+            || get(/databases/$(database)/documents/mentorships/$(mentorshipId)).data.alumniOwnerUid == request.auth.uid
+            || isAdmin()
+          );
+        allow list: if isValidId(mentorshipId)
+          && isSignedIn()
+          && (
+            resource.data.studentId == request.auth.uid
+            || resource.data.alumniOwnerUid == request.auth.uid
+            || isBootstrapAdmin()
+          );
+        allow create: if isValidId(mentorshipId)
+          && isValidId(messageId)
+          && isSignedIn()
+          && isValidMentorshipMessage(incoming())
+          && incoming().id == messageId
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/mentorships/$(mentorshipId))
+          && get(/databases/$(database)/documents/mentorships/$(mentorshipId)).data.status == 'accepted'
+          && incoming().studentId == get(/databases/$(database)/documents/mentorships/$(mentorshipId)).data.studentId
+          && incoming().alumniOwnerUid == get(/databases/$(database)/documents/mentorships/$(mentorshipId)).data.alumniOwnerUid
+          && (
+            (incoming().senderRole == 'student' && request.auth.uid == incoming().studentId)
+            || (incoming().senderRole == 'alumni' && request.auth.uid == incoming().alumniOwnerUid)
+          );
+      }
+    }
+
+    // Collection: /opportunities/{opportunityId}
+    match /opportunities/{opportunityId} {
+      allow get: if isValidId(opportunityId) && isSignedIn();
+      allow list: if isSignedIn() && resource.data.isPublished == true;
+      allow create: if isValidId(opportunityId)
+        && isSignedIn()
+        && isValidOpportunity(incoming())
+        && incoming().id == opportunityId
+        && incoming().postedById == request.auth.uid
+        && incoming().isPublished == true
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            isValidId(incoming().postedByAlumniId)
+            && exists(/databases/$(database)/documents/alumni/$(incoming().postedByAlumniId))
+            && get(/databases/$(database)/documents/alumni/$(incoming().postedByAlumniId)).data.ownerUid == request.auth.uid
+            && get(/databases/$(database)/documents/alumni/$(incoming().postedByAlumniId)).data.verificationStatus == 'verified'
+          )
+        );
+      allow delete: if isValidId(opportunityId)
+        && isSignedIn()
+        && (existing().postedById == request.auth.uid || isAdmin());
+    }
+
+    // Collection: /guides/{guideId}
+    match /guides/{guideId} {
+      allow get: if isValidId(guideId) && isSignedIn();
+      allow list: if isSignedIn() && resource.data.isPublished == true;
+      allow create: if isValidId(guideId)
+        && isSignedIn()
+        && isValidGuide(incoming())
+        && incoming().id == guideId
+        && incoming().authorId == request.auth.uid
+        && incoming().upvotes == 0
+        && incoming().isPublished == true
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            isValidId(incoming().authorAlumniId)
+            && exists(/databases/$(database)/documents/alumni/$(incoming().authorAlumniId))
+            && get(/databases/$(database)/documents/alumni/$(incoming().authorAlumniId)).data.ownerUid == request.auth.uid
+            && get(/databases/$(database)/documents/alumni/$(incoming().authorAlumniId)).data.verificationStatus == 'verified'
+          )
+        );
+      allow update: if isValidId(guideId)
+        && isSignedIn()
+        && isValidGuide(incoming())
+        && incoming().id == existing().id
+        && incoming().authorId == existing().authorId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            incoming().diff(existing()).affectedKeys().hasOnly(['upvotes', 'updatedAt'])
+            && (
+              (
+                incoming().upvotes == existing().upvotes + 1
+                && !exists(/databases/$(database)/documents/guides/$(guideId)/upvotes/$(request.auth.uid))
+                && existsAfter(/databases/$(database)/documents/guides/$(guideId)/upvotes/$(request.auth.uid))
+              )
+              || (
+                incoming().upvotes == existing().upvotes - 1
+                && existing().upvotes > 0
+                && exists(/databases/$(database)/documents/guides/$(guideId)/upvotes/$(request.auth.uid))
+                && !existsAfter(/databases/$(database)/documents/guides/$(guideId)/upvotes/$(request.auth.uid))
+              )
+            )
+          )
+        );
+
+      match /upvotes/{userId} {
+        allow get: if isValidId(guideId) && isValidId(userId) && isOwner(userId);
+        allow list: if isValidId(guideId) && isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(guideId)
+          && isValidId(userId)
+          && isSignedIn()
+          && isOwner(userId)
+          && isValidGuideUpvote(incoming())
+          && incoming().createdAt == request.time
+          && getAfter(/databases/$(database)/documents/guides/$(guideId)).data.upvotes
+             == get(/databases/$(database)/documents/guides/$(guideId)).data.upvotes + 1;
+        allow delete: if isValidId(guideId)
+          && isValidId(userId)
+          && isSignedIn()
+          && isOwner(userId)
+          && getAfter(/databases/$(database)/documents/guides/$(guideId)).data.upvotes
+             == get(/databases/$(database)/documents/guides/$(guideId)).data.upvotes - 1;
+      }
+    }
+
+    // Collection: /seniorForms/{formId}
+    match /seniorForms/{formId} {
+      allow get: if isValidId(formId)
+        && isVerifiedUser()
+        && (existing().createdByUid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser()
+        && (resource.data.createdByUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isValidId(formId)
+        && isVerifiedUser()
+        && isValidSeniorForm(incoming())
+        && incoming().formId == formId
+        && incoming().createdAt == request.time;
+
+      match /imported/{responseId} {
+        allow get: if isValidId(formId)
+          && isValidId(responseId)
+          && isVerifiedUser()
+          && (existing().createdByUid == request.auth.uid || isAdmin());
+        allow list: if isValidId(formId)
+          && isVerifiedUser()
+          && (resource.data.createdByUid == request.auth.uid || isBootstrapAdmin());
+        allow create: if isValidId(formId)
+          && isValidId(responseId)
+          && isVerifiedUser()
+          && isValidImportedMarker(incoming())
+          && incoming().responseId == responseId
+          && incoming().importedAt == request.time
+          && exists(/databases/$(database)/documents/seniorForms/$(formId));
+      }
+    }
+  }
+}

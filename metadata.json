@@ -1,0 +1,8 @@
+{
+  "name": "PARTHA — Alumni Mentorship & Opportunity Platform",
+  "description": "KLS VDIT Alumni Mentorship, Explainable Discovery, Career Opportunities, and Knowledge Hub platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

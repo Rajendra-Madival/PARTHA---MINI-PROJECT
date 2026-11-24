@@ -1,0 +1,381 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authenticated user account and student matching profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "role": { "type": "string", "enum": ["student", "alumni", "admin"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "subtitle": { "type": "string", "maxLength": 160 },
+        "usn": { "type": "string", "maxLength": 40 },
+        "branch": { "type": "string", "enum": ["CSE", "ISE", "ECE", "ME", "EEE"] },
+        "semester": { "type": "integer" },
+        "targetSkills": { "type": "array" },
+        "targetDomain": { "type": "string", "maxLength": 100 },
+        "targetCompany": { "type": "string", "maxLength": 100 },
+        "lookingForInternship": { "type": "boolean" },
+        "lookingForProjectHelp": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "role",
+        "name",
+        "email",
+        "subtitle",
+        "usn",
+        "branch",
+        "semester",
+        "targetSkills",
+        "targetDomain",
+        "targetCompany",
+        "lookingForInternship",
+        "lookingForProjectHelp",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookmarkItem": {
+      "title": "BookmarkItem",
+      "description": "Saved mentor or opportunity bookmark owned by a user.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": { "type": "string", "enum": ["alumni", "opportunity"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "targetId", "kind", "createdAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted Placement & Alumni Cell administrator marker.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "grantedAt"]
+    },
+    "AlumniPublicProfile": {
+      "title": "AlumniPublicProfile",
+      "description": "Public directory profile for an alumnus (strictly excludes email, phone, and LinkedIn PII).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "graduationYear": { "type": "integer" },
+        "branch": { "type": "string", "enum": ["CSE", "ISE", "ECE", "ME", "EEE"] },
+        "role": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "company": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "domain": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "skills": { "type": "array" },
+        "location": { "type": "string", "maxLength": 100 },
+        "openToInternshipReferrals": { "type": "boolean" },
+        "openToProjectMentoring": { "type": "boolean" },
+        "sharedProjectGuidesCount": { "type": "integer" },
+        "bio": { "type": "string", "maxLength": 1000 },
+        "regNumber": { "type": "string", "maxLength": 40 },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "source": { "type": "string", "enum": ["self-registered", "google-form", "admin-added"] },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "name",
+        "graduationYear",
+        "branch",
+        "role",
+        "company",
+        "domain",
+        "skills",
+        "location",
+        "openToInternshipReferrals",
+        "openToProjectMentoring",
+        "sharedProjectGuidesCount",
+        "bio",
+        "regNumber",
+        "verificationStatus",
+        "source",
+        "submittedAt",
+        "updatedAt"
+      ]
+    },
+    "AlumniPrivateContact": {
+      "title": "AlumniPrivateContact",
+      "description": "Privacy-gated contact info unlocked only for accepted mentees, the owner, or admins.",
+      "type": "object",
+      "properties": {
+        "alumniId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "linkedinUrl": { "type": "string", "maxLength": 300 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["alumniId", "ownerUid", "email", "phone", "linkedinUrl", "updatedAt"]
+    },
+    "MentorshipConnection": {
+      "title": "MentorshipConnection",
+      "description": "Mentorship request and accepted connection between a student and an alumnus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "studentBranch": { "type": "string", "enum": ["CSE", "ISE", "ECE", "ME", "EEE"] },
+        "studentSemester": { "type": "integer" },
+        "studentUsn": { "type": "string", "maxLength": 40 },
+        "alumniId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "alumniOwnerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "alumniName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "alumniRole": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "alumniCompany": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "alumniBranch": { "type": "string", "enum": ["CSE", "ISE", "ECE", "ME", "EEE"] },
+        "alumniGraduationYear": { "type": "integer" },
+        "goal": {
+          "type": "string",
+          "enum": ["Career Guidance", "Resume Review", "Internship Referral", "Project Help"]
+        },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "respondedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "studentName",
+        "studentBranch",
+        "studentSemester",
+        "studentUsn",
+        "alumniId",
+        "alumniOwnerUid",
+        "alumniName",
+        "alumniRole",
+        "alumniCompany",
+        "alumniBranch",
+        "alumniGraduationYear",
+        "goal",
+        "message",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MentorshipMessageDoc": {
+      "title": "MentorshipMessageDoc",
+      "description": "Direct message inside an accepted mentorship thread.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "alumniOwnerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "senderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "senderRole": { "type": "string", "enum": ["student", "alumni"] },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "alumniOwnerUid",
+        "senderId",
+        "senderName",
+        "senderRole",
+        "text",
+        "createdAt"
+      ]
+    },
+    "OpportunityPost": {
+      "title": "OpportunityPost",
+      "description": "Internship, full-time role, or project posted by verified alumni.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "company": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "type": { "type": "string", "enum": ["Internship", "Full-time Job", "Collaborative Project"] },
+        "domain": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "location": { "type": "string", "maxLength": 100 },
+        "stipendOrCtc": { "type": "string", "maxLength": 80 },
+        "skills": { "type": "array" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "applyUrl": { "type": "string", "maxLength": 300 },
+        "postedById": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "postedByAlumniId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "postedByName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "postedByRole": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "isRemote": { "type": "boolean" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "title",
+        "company",
+        "type",
+        "domain",
+        "location",
+        "stipendOrCtc",
+        "skills",
+        "description",
+        "applyUrl",
+        "postedById",
+        "postedByAlumniId",
+        "postedByName",
+        "postedByRole",
+        "isRemote",
+        "isPublished",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "KnowledgeGuideDoc": {
+      "title": "KnowledgeGuideDoc",
+      "description": "Interview prep or career guide authored by verified alumni.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "domain": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "content": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "readTimeMinutes": { "type": "integer" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorAlumniId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "authorRole": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "authorCompany": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "authorBatch": { "type": "string", "maxLength": 40 },
+        "upvotes": { "type": "integer" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "title",
+        "domain",
+        "summary",
+        "content",
+        "readTimeMinutes",
+        "authorId",
+        "authorAlumniId",
+        "authorName",
+        "authorRole",
+        "authorCompany",
+        "authorBatch",
+        "upvotes",
+        "isPublished",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GuideUpvoteDoc": {
+      "title": "GuideUpvoteDoc",
+      "description": "Individual user upvote marker synchronized atomically with guide upvote count.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "SeniorIntakeForm": {
+      "title": "SeniorIntakeForm",
+      "description": "Google Form created for floating on WhatsApp to gather senior alumni info.",
+      "type": "object",
+      "properties": {
+        "formId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "responderUri": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "editUri": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdByEmail": { "type": "string", "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "formId",
+        "title",
+        "responderUri",
+        "editUri",
+        "createdByUid",
+        "createdByEmail",
+        "createdAt"
+      ]
+    },
+    "ImportedFormResponseMarker": {
+      "title": "ImportedFormResponseMarker",
+      "description": "Tracks Google Form responses already imported into PARTHA alumni directory.",
+      "type": "object",
+      "properties": {
+        "responseId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "alumniId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "importedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["responseId", "alumniId", "createdByUid", "importedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "User account and student matching profile."
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/BookmarkItem" },
+      "description": "Saved mentors and opportunities per user."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Placement & Alumni Cell administrator records."
+    },
+    "/alumni/{alumniId}": {
+      "schema": { "$ref": "#/entities/AlumniPublicProfile" },
+      "description": "Alumni profiles (public fields only, gated contact in subcollection)."
+    },
+    "/alumni/{alumniId}/private/contact": {
+      "schema": { "$ref": "#/entities/AlumniPrivateContact" },
+      "description": "Privacy-gated email, phone, and LinkedIn for each alumnus."
+    },
+    "/mentorships/{mentorshipId}": {
+      "schema": { "$ref": "#/entities/MentorshipConnection" },
+      "description": "Student-to-alumnus mentorship requests and 1-on-1 call bookings."
+    },
+    "/mentorships/{mentorshipId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/MentorshipMessageDoc" },
+      "description": "Direct messages inside an accepted mentorship."
+    },
+    "/opportunities/{opportunityId}": {
+      "schema": { "$ref": "#/entities/OpportunityPost" },
+      "description": "Internships, full-time jobs, and capstone projects posted by verified alumni."
+    },
+    "/guides/{guideId}": {
+      "schema": { "$ref": "#/entities/KnowledgeGuideDoc" },
+      "description": "Knowledge Hub career and interview guides."
+    },
+    "/guides/{guideId}/upvotes/{userId}": {
+      "schema": { "$ref": "#/entities/GuideUpvoteDoc" },
+      "description": "User upvote records synchronized atomically with guide upvotes."
+    },
+    "/seniorForms/{formId}": {
+      "schema": { "$ref": "#/entities/SeniorIntakeForm" },
+      "description": "Google Forms generated for WhatsApp senior alumni outreach."
+    },
+    "/seniorForms/{formId}/imported/{responseId}": {
+      "schema": { "$ref": "#/entities/ImportedFormResponseMarker" },
+      "description": "Markers preventing duplicate import of Google Form submissions."
+    }
+  }
+}
