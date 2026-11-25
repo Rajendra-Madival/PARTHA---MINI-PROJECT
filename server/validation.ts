@@ -73,6 +73,26 @@ export function validateSafeHttpUrl(raw: unknown): string | null {
   }
 }
 
+export function validateSafeAvatarUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('kokonut:')) {
+    const seed = trimmed.slice('kokonut:'.length).trim().slice(0, 100);
+    return seed ? `kokonut:${seed}` : null;
+  }
+
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
+    if (trimmed.length > 360_000) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  return validateSafeHttpUrl(trimmed);
+}
+
 export function parsePagination(
   pageRaw: unknown,
   limitRaw: unknown,

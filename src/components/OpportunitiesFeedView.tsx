@@ -16,6 +16,10 @@ import type {
   OpportunityType,
   UserRole,
 } from '../types';
+import {
+  GuidesSkeletonList,
+  OpportunitiesSkeletonGrid,
+} from './SkeletonLoaders';
 
 interface OpportunitiesFeedViewProps {
   initialFeed: 'opportunities' | 'guides';
@@ -192,32 +196,9 @@ export function OpportunitiesFeedView({
 
       {loading ? (
         feedTab === 'opportunities' ? (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {[1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-3 animate-pulse"
-              >
-                <div className="h-3 w-40 rounded bg-[#F3EFE4]" />
-                <div className="h-5 w-56 rounded bg-[#EEE9DC]" />
-                <div className="h-14 w-full rounded bg-[#F3EFE4]" />
-                <div className="flex items-center justify-between border-t border-[#EEE9DC] pt-3">
-                  <div className="h-4 w-36 rounded bg-[#F3EFE4]" />
-                  <div className="h-8 w-20 rounded-lg bg-[#EEE9DC]" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <OpportunitiesSkeletonGrid />
         ) : (
-          <div className="divide-y divide-[#EEE9DC] rounded-xl border border-[#E5DFD0] bg-[#FFFEFA]">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="p-5 space-y-2.5 animate-pulse">
-                <div className="h-3 w-40 rounded bg-[#F3EFE4]" />
-                <div className="h-5 w-64 rounded bg-[#EEE9DC]" />
-                <div className="h-10 w-full rounded bg-[#F3EFE4]" />
-              </div>
-            ))}
-          </div>
+          <GuidesSkeletonList />
         )
       ) : feedTab === 'opportunities' ? (
         opportunities.length === 0 ? (

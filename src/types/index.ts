@@ -3,10 +3,11 @@ export type UserRole = 'student' | 'alumni' | 'admin';
 export type VerificationStatus = 'verified' | 'pending' | 'rejected';
 
 export type MentorshipGoal =
-  | 'Career Guidance'
+  | 'Career & Referral'
   | 'Resume Review'
-  | 'Internship Referral'
-  | 'Project Help';
+  | 'Project Review'
+  | 'Other (Custom)'
+  | string;
 
 export type MentorshipStatus = 'pending' | 'accepted' | 'declined';
 
@@ -39,6 +40,7 @@ export interface AuthUser {
   branch?: BranchCode;
   isAdminAccount?: boolean;
   verificationStatus?: VerificationStatus;
+  avatarUrl?: string;
   studentProfile?: StudentTargetProfile;
 }
 
@@ -95,6 +97,11 @@ export interface StudentTargetProfile {
   targetDomain: string;
   targetCompany: string;
   resumeUrl: string;
+  resumeText?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  leetcodeUrl?: string;
+  avatarUrl?: string;
   lookingForInternship: boolean;
   lookingForProjectHelp: boolean;
 }

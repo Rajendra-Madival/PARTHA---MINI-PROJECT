@@ -3,25 +3,25 @@ import { useState, type FormEvent } from 'react';
 import type { AlumniProfile, MentorshipGoal } from '../types';
 import { Avatar } from './Avatar';
 
-const GOALS: MentorshipGoal[] = [
-  'Career Guidance',
+const GOALS: string[] = [
+  'Career & Referral',
   'Resume Review',
-  'Internship Referral',
-  'Project Help',
+  'Project Review',
+  'Other (Custom)',
 ];
 
-function getTemplateMessage(goal: MentorshipGoal, alumni: AlumniProfile): string {
+function getTemplateMessage(goal: string, alumni: AlumniProfile): string {
   const firstName = alumni.name.split(' ')[0];
   if (goal === 'Resume Review') {
-    return `Hi ${firstName}, I am currently studying at KLS VDIT and preparing for upcoming roles in ${alumni.domain}. Could you share quick feedback on my 1-page resume and project bullets?`;
+    return `Hi ${firstName}, I am currently studying at KLS VDIT and preparing for upcoming roles in ${alumni.domain}. Could you share quick feedback on my resume and project bullets?`;
   }
-  if (goal === 'Internship Referral') {
-    return `Hi ${firstName}, I have been building projects using ${alumni.skills.slice(0, 2).join(' and ')} and am keen on internship opportunities at ${alumni.company}. I would love your guidance on applying and preparing.`;
+  if (goal === 'Career & Referral') {
+    return `Hi ${firstName}, I have been building projects using ${alumni.skills.slice(0, 2).join(' and ')} and am keen on career opportunities at ${alumni.company}. I would love your referral and guidance.`;
   }
-  if (goal === 'Project Help') {
+  if (goal === 'Project Review') {
     return `Hi ${firstName}, my team at KLS VDIT is working on a ${alumni.domain} project. Could we get 15 minutes of your advice on our architecture and evaluation plan?`;
   }
-  return `Hi ${firstName}, I read your journey from KLS VDIT to ${alumni.company} and would be grateful for 15 minutes of career guidance on entering ${alumni.domain}.`;
+  return `Hi ${firstName}, I read your journey from KLS VDIT to ${alumni.company} and would be grateful for 15 minutes of mentorship.`;
 }
 
 interface MentorshipModalProps {
@@ -39,7 +39,8 @@ export function MentorshipModal({
   onClose,
   onSubmit,
 }: MentorshipModalProps) {
-  const [goal, setGoal] = useState<MentorshipGoal>('Career Guidance');
+  const [goal, setGoal] = useState<string>('Career & Referral');
+  const [customGoal, setCustomGoal] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function MentorshipModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!alumni) return;
+    const effectiveGoal = goal === 'Other (Custom)' ? (customGoal.trim() || 'Other') : goal;
     if (message.trim().length < 12) {
       setError('Please write a brief note (at least 12 characters) explaining your goal.');
       return;
@@ -59,10 +61,11 @@ export function MentorshipModal({
     try {
       await onSubmit({
         alumniId: alumni.id,
-        goal,
+        goal: effectiveGoal,
         message: message.trim(),
       });
       setMessage('');
+      setCustomGoal('');
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send request.');
@@ -128,6 +131,16 @@ export function MentorshipModal({
                 );
               })}
             </div>
+            {goal === 'Other (Custom)' && (
+              <input
+                type="text"
+                required
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value)}
+                placeholder="Write your custom mentorship goal..."
+                className="mt-2.5 w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-xs focus:border-emerald-700 focus:outline-none"
+              />
+            )}
           </div>
 
           <div>

@@ -51,6 +51,7 @@ import {
   normalizeEmail,
   normalizeStringArray,
   VALID_BRANCHES,
+  validateSafeAvatarUrl,
   validateSafeHttpUrl,
 } from './validation.ts';
 
@@ -325,6 +326,11 @@ class PostgresParthaStore {
         targetDomain: sp?.targetDomain ?? 'Machine Learning & AI',
         targetCompany: sp?.targetCompany ?? '',
         resumeUrl: sp?.resumeUrl ?? '',
+        resumeText: sp?.resumeText ?? '',
+        githubUrl: sp?.githubUrl ?? '',
+        linkedinUrl: sp?.linkedinUrl ?? '',
+        leetcodeUrl: sp?.leetcodeUrl ?? '',
+        avatarUrl: sp?.avatarUrl || undefined,
         lookingForInternship: sp?.lookingForInternship ?? true,
         lookingForProjectHelp: sp?.lookingForProjectHelp ?? true,
       };
@@ -335,6 +341,7 @@ class PostgresParthaStore {
         email: u.email,
         subtitle: u.subtitle || `Sem ${studentProfile.semester} ${studentProfile.branch}`,
         branch: studentProfile.branch,
+        avatarUrl: sp?.avatarUrl || undefined,
         studentProfile,
       };
     }
@@ -356,6 +363,7 @@ class PostgresParthaStore {
             ? `${a.role}, ${a.company} · ${a.graduationYear} ${a.branch}`
             : u.subtitle,
         branch: normalizeBranch(a?.branch ?? u.branch),
+        avatarUrl: a?.avatarUrl || undefined,
         verificationStatus: (a?.verificationStatus as VerificationStatus) ?? 'pending',
       };
     }
@@ -504,6 +512,10 @@ class PostgresParthaStore {
     semester: number;
     targetSkills: string[];
     targetDomain: string;
+    resumeText?: string;
+    githubUrl?: string;
+    linkedinUrl?: string;
+    leetcodeUrl?: string;
     password: string;
   }): Promise<AuthSession> {
     await ensureDatabaseSchema();
@@ -516,6 +528,10 @@ class PostgresParthaStore {
     const semester = Math.min(8, Math.max(1, Math.round(Number(input.semester) || 6)));
     const skills = normalizeStringArray(input.targetSkills, 15, 40);
     const targetDomain = clampText(input.targetDomain, 100) || 'Machine Learning & AI';
+    const resumeText = clampText(input.resumeText ?? '', 5000);
+    const githubUrl = input.githubUrl ? (validateSafeHttpUrl(input.githubUrl) ?? '') : '';
+    const linkedinUrl = input.linkedinUrl ? (validateSafeHttpUrl(input.linkedinUrl) ?? '') : '';
+    const leetcodeUrl = input.leetcodeUrl ? (validateSafeHttpUrl(input.leetcodeUrl) ?? '') : '';
 
     if (!name || !email || !isValidEmail(email) || !usn || !input.password || input.password.length < 4) {
       throw new StoreError(
@@ -561,6 +577,10 @@ class PostgresParthaStore {
         targetDomain,
         targetCompany: '',
         resumeUrl: '',
+        resumeText,
+        githubUrl,
+        linkedinUrl,
+        leetcodeUrl,
         lookingForInternship: true,
         lookingForProjectHelp: true,
       });
@@ -574,17 +594,10 @@ class PostgresParthaStore {
   async registerAlumni(input: {
     name: string;
     email: string;
-    phone: string;
-    linkedinUrl: string;
+    phone?: string;
     regNumber: string;
     graduationYear: number;
     branch: BranchCode;
-    role: string;
-    company: string;
-    domain: string;
-    skills: string[];
-    location: string;
-    bio: string;
     password: string;
   }): Promise<AuthSession> {
     await ensureDatabaseSchema();
@@ -593,37 +606,25 @@ class PostgresParthaStore {
     const email = normalizeEmail(input.email);
     const reg = clampText(input.regNumber, 40).toUpperCase();
     const name = clampText(input.name, 120);
-    const roleTitle = clampText(input.role, 120);
-    const company = clampText(input.company, 120);
     const gradYear = Math.min(2035, Math.max(1995, Math.round(Number(input.graduationYear) || 2022)));
     const branch = normalizeBranch(input.branch);
-    const domain = clampText(input.domain, 100) || 'Full-Stack & FinTech';
-    const skills = normalizeStringArray(input.skills, 20, 40);
-    const location = clampText(input.location, 100) || 'Bengaluru';
-    const bio =
-      clampText(input.bio, 1000) ||
-      `${roleTitle} at ${company} · KLS VDIT Class of ${gradYear}.`;
-
-    const safeLinkedin = input.linkedinUrl
-      ? validateSafeHttpUrl(input.linkedinUrl)
-      : '';
-    if (safeLinkedin === null) {
-      throw new StoreError(400, 'LinkedIn URL must start with http:// or https://.');
-    }
+    const roleTitle = 'Software Professional';
+    const company = 'Alumni Network';
+    const domain = 'Full-Stack & FinTech';
+    const location = 'Bengaluru';
+    const bio = `KLS VDIT Class of ${gradYear} ${branch}.`;
 
     if (
       !name ||
       !email ||
       !isValidEmail(email) ||
       !reg ||
-      !roleTitle ||
-      !company ||
       !input.password ||
       input.password.length < 4
     ) {
       throw new StoreError(
         400,
-        'Name, valid email, USN, company, role, and password (4+ characters) are required.',
+        'Name, valid email, USN, and password (4+ characters) are required.',
       );
     }
 
@@ -664,7 +665,7 @@ class PostgresParthaStore {
         role: roleTitle,
         company,
         domain,
-        skills: skills.length > 0 ? skills : ['Software Engineering'],
+        skills: ['Software Engineering'],
         location,
         bio,
         regNumber: reg,
@@ -677,8 +678,8 @@ class PostgresParthaStore {
       await tx.insert(alumniPrivateContacts).values({
         alumniId: id,
         email,
-        phone: clampText(input.phone, 40),
-        linkedinUrl: safeLinkedin,
+        phone: clampText(input.phone ?? '', 40),
+        linkedinUrl: '',
       });
     });
 
@@ -866,6 +867,35 @@ class PostgresParthaStore {
       throw new StoreError(400, 'Resume / Portfolio URL must use http:// or https://.');
     }
 
+    const nextResumeText =
+      typeof updates.resumeText === 'string'
+        ? clampText(updates.resumeText, 5000)
+        : existingSp?.resumeText ?? '';
+    const nextGithubUrl =
+      typeof updates.githubUrl === 'string'
+        ? validateSafeHttpUrl(updates.githubUrl) ?? ''
+        : existingSp?.githubUrl ?? '';
+    const nextLinkedinUrl =
+      typeof updates.linkedinUrl === 'string'
+        ? validateSafeHttpUrl(updates.linkedinUrl) ?? ''
+        : existingSp?.linkedinUrl ?? '';
+    const nextLeetcodeUrl =
+      typeof updates.leetcodeUrl === 'string'
+        ? validateSafeHttpUrl(updates.leetcodeUrl) ?? ''
+        : existingSp?.leetcodeUrl ?? '';
+
+    const nextAvatarUrl =
+      typeof updates.avatarUrl === 'string'
+        ? validateSafeAvatarUrl(updates.avatarUrl)
+        : existingSp?.avatarUrl ?? '';
+
+    if (nextAvatarUrl === null) {
+      throw new StoreError(
+        400,
+        'Avatar must be a PNG/JPG/WEBP photo (under 250KB), Kokonut avatar, or valid http(s) URL.',
+      );
+    }
+
     const nextInternship =
       typeof updates.lookingForInternship === 'boolean'
         ? updates.lookingForInternship
@@ -894,6 +924,11 @@ class PostgresParthaStore {
           targetDomain: nextDomain,
           targetCompany: nextCompany,
           resumeUrl: nextResumeUrl,
+          resumeText: nextResumeText,
+          githubUrl: nextGithubUrl,
+          linkedinUrl: nextLinkedinUrl,
+          leetcodeUrl: nextLeetcodeUrl,
+          avatarUrl: nextAvatarUrl,
           lookingForInternship: nextInternship,
           lookingForProjectHelp: nextProjectHelp,
           updatedAt: new Date(),
@@ -908,6 +943,11 @@ class PostgresParthaStore {
             targetDomain: nextDomain,
             targetCompany: nextCompany,
             resumeUrl: nextResumeUrl,
+            resumeText: nextResumeText,
+            githubUrl: nextGithubUrl,
+            linkedinUrl: nextLinkedinUrl,
+            leetcodeUrl: nextLeetcodeUrl,
+            avatarUrl: nextAvatarUrl,
             lookingForInternship: nextInternship,
             lookingForProjectHelp: nextProjectHelp,
             updatedAt: new Date(),
@@ -938,6 +978,7 @@ class PostgresParthaStore {
       contactEmail: string;
       phone: string;
       linkedinUrl: string;
+      avatarUrl?: string;
     },
   ): Promise<{ user: AuthUser; alumni: AlumniProfile }> {
     await ensureDatabaseSchema();
@@ -971,6 +1012,18 @@ class PostgresParthaStore {
       .limit(1);
     const targetAlumniId = existingRows[0]?.id ?? alumniUser.id;
 
+    let nextAvatarUrl: string | null = existingRows[0]?.avatarUrl ?? null;
+    if (typeof payload.avatarUrl === 'string') {
+      const validatedAvatar = validateSafeAvatarUrl(payload.avatarUrl);
+      if (validatedAvatar === null) {
+        throw new StoreError(
+          400,
+          'Avatar must be a PNG/JPG/WEBP photo (under 250KB), Kokonut avatar, or valid http(s) URL.',
+        );
+      }
+      nextAvatarUrl = validatedAvatar || null;
+    }
+
     await db.transaction(async (tx) => {
       await tx
         .update(users)
@@ -991,6 +1044,7 @@ class PostgresParthaStore {
           skills: cleanSkills.length > 0 ? cleanSkills : [cleanDomain],
           location: cleanLocation,
           bio: cleanBio,
+          avatarUrl: nextAvatarUrl,
           regNumber: cleanReg,
           source: existingRows[0]?.source ?? 'self-registered',
           verificationStatus: existingRows[0]?.verificationStatus ?? 'pending',
@@ -1011,12 +1065,20 @@ class PostgresParthaStore {
             skills: cleanSkills.length > 0 ? cleanSkills : [cleanDomain],
             location: cleanLocation,
             bio: cleanBio,
+            avatarUrl: nextAvatarUrl,
             regNumber: cleanReg,
             openToInternshipReferrals: Boolean(payload.openToInternshipReferrals),
             openToProjectMentoring: Boolean(payload.openToProjectMentoring),
             updatedAt: new Date(),
           },
         });
+
+      if (typeof payload.avatarUrl === 'string') {
+        await tx
+          .update(mentorshipRequests)
+          .set({ alumniAvatarUrl: nextAvatarUrl })
+          .where(eq(mentorshipRequests.alumniId, targetAlumniId));
+      }
 
       await tx
         .insert(alumniPrivateContacts)

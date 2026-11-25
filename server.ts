@@ -207,16 +207,9 @@ async function startServer() {
         name: body.name ?? '',
         email: body.email ?? '',
         phone: body.phone ?? '',
-        linkedinUrl: body.linkedinUrl ?? '',
         regNumber: body.regNumber ?? '',
         graduationYear: body.graduationYear ?? 2022,
         branch: body.branch ?? 'CSE',
-        role: body.role ?? '',
-        company: body.company ?? '',
-        domain: body.domain ?? 'Full-Stack & FinTech',
-        skills: Array.isArray(body.skills) ? body.skills : ['Software Engineering'],
-        location: body.location ?? 'Bengaluru',
-        bio: body.bio ?? '',
         password: body.password ?? '',
       });
       res.status(201).json(session);

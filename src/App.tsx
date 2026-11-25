@@ -327,6 +327,8 @@ export default function App() {
   }, [user, loadCoreData]);
 
   function handleAuthenticated(session: AuthSession) {
+    setDiscoveryLoading(true);
+    setFeedLoading(true);
     setUser(session.user);
     setStudentProfile(session.user.studentProfile ?? null);
     setOwnAlumniProfile(undefined);
@@ -376,6 +378,7 @@ export default function App() {
             name: updated.name,
             branch: updated.branch,
             subtitle: `Sem ${updated.semester} ${updated.branch}${updated.usn ? ` · ${updated.usn}` : ''}`,
+            avatarUrl: updated.avatarUrl,
             studentProfile: updated,
           }
         : prev,
@@ -400,12 +403,16 @@ export default function App() {
     contactEmail: string;
     phone: string;
     linkedinUrl: string;
+    avatarUrl?: string;
   }) {
     if (!user) return;
     const res = await parthaApi.updateAlumniDetails(payload);
     setUser(res.user);
     setOwnAlumniProfile(res.alumni);
-    await loadDiscovery(res.user, discoveryFilters, alumniPage, true);
+    await Promise.all([
+      loadDiscovery(res.user, discoveryFilters, alumniPage, true),
+      loadCoreData(res.user, true),
+    ]);
     showToast('Alumni profile details saved.');
   }
 

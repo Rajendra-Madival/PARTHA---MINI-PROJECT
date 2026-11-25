@@ -1,11 +1,13 @@
 import {
   AlertCircle,
+  ArrowRight,
   Database,
   GraduationCap,
   RefreshCw,
   ShieldCheck,
   UserCheck,
 } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { parthaApi } from '../services/api';
 import type {
@@ -34,6 +36,24 @@ const DOMAINS = [
   'Cybersecurity & Infra',
 ];
 
+const ROLE_TABS: Array<{
+  id: UserRole;
+  label: string;
+  icon: typeof GraduationCap;
+}> = [
+  { id: 'student', label: 'Student', icon: GraduationCap },
+  { id: 'alumni', label: 'Alumni', icon: UserCheck },
+  { id: 'admin', label: 'Admin', icon: ShieldCheck },
+];
+
+const EASE_EDITORIAL = [0.22, 1, 0.36, 1] as const;
+
+const INPUT_CLASS =
+  'h-9 w-full rounded-lg border border-[#E5DFD0] bg-white px-3 text-sm text-[#18221D] placeholder:text-stone-400 transition-colors focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/10';
+
+const COMPACT_INPUT_CLASS =
+  'h-9 w-full rounded-lg border border-[#E5DFD0] bg-white px-3 text-[13px] text-[#18221D] placeholder:text-stone-400 transition-colors focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/10';
+
 export function AuthScreen({
   dbHealth,
   bootstrapStatus,
@@ -41,8 +61,10 @@ export function AuthScreen({
   onRetryHealth,
   onAuthenticated,
 }: AuthScreenProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [role, setRole] = useState<UserRole>('student');
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
@@ -102,8 +124,19 @@ export function AuthScreen({
     setPreviewResetCode(null);
   }
 
+  function switchAuthMode(nextMode: 'login' | 'register' | 'forgot') {
+    const order: Record<'login' | 'register' | 'forgot', number> = {
+      login: 0,
+      register: 1,
+      forgot: 2,
+    };
+    setSlideDirection(order[nextMode] >= order[mode] ? 1 : -1);
+    setMode(nextMode);
+  }
+
   function handleSelectRole(nextRole: UserRole) {
     setRole(nextRole);
+    setSlideDirection(-1);
     setMode('login');
     setError(null);
     setLoginSuccess(null);
@@ -118,7 +151,7 @@ export function AuthScreen({
     setLoginSuccess(null);
     resetForgotState();
     setResetEmail(identifier.includes('@') ? identifier.trim() : '');
-    setMode('forgot');
+    switchAuthMode('forgot');
   }
 
   async function handleLoginSubmit(e: FormEvent) {
@@ -256,7 +289,7 @@ export function AuthScreen({
       });
       const updatedEmail = resetEmail.trim();
       resetForgotState();
-      setMode('login');
+      switchAuthMode('login');
       setIdentifier(updatedEmail);
       setPassword('');
       setLoginSuccess(res.message);
@@ -267,230 +300,248 @@ export function AuthScreen({
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#FAF7F0] flex flex-col">
-      <header className="border-b border-[#E5DFD0] bg-[#FFFEFA]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <span className="font-display text-lg font-bold tracking-tight text-emerald-950">
-            PARTHA
-          </span>
-          <span className="text-xs font-medium text-stone-600">
-            KLS VDIT Alumni Mentorship Portal
-          </span>
+  const isRegisterView = mode === 'register' && role !== 'admin';
+  const cardWidth = isRegisterView ? 'max-w-[540px]' : 'max-w-[420px]';
+  const viewKey = `${role}-${needsAdminClaim ? 'claim' : mode}-${mode === 'forgot' ? resetStep : ''}`;
+
+  const headingTitle =
+    role === 'student'
+      ? mode === 'login'
+        ? 'Student Sign In'
+        : mode === 'register'
+          ? 'Student Registration'
+          : 'Reset Password'
+      : role === 'alumni'
+        ? mode === 'login'
+          ? 'Alumni Sign In'
+          : mode === 'register'
+            ? 'Alumni Registration'
+            : 'Reset Password'
+        : needsAdminClaim
+          ? 'Admin Setup'
+          : 'Admin Sign In';
+
+  const authCardContent = (
+    <motion.div
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: EASE_EDITORIAL }}
+      className={`pointer-events-auto relative z-10 w-full ${cardWidth} space-y-4 transition-[max-width] duration-300 ease-out`}
+    >
+        {/* Prominent Institutional Signature */}
+        <div className="flex items-center justify-center gap-4 px-2">
+          <span className="h-px flex-1 bg-[#E5DFD0]" aria-hidden="true" />
+          <p className="font-display text-lg font-bold tracking-[0.22em] text-emerald-950 sm:text-xl">
+            KLS VDIT
+          </p>
+          <span className="h-px flex-1 bg-[#E5DFD0]" aria-hidden="true" />
         </div>
-      </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center px-4 py-10 sm:px-6">
-        <div className="grid w-full grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
-          {/* Plain-English Intro */}
-          <div className="lg:col-span-5 space-y-6">
-            <div>
-              <p className="text-xs font-semibold text-emerald-800">
-                KLS Vishwanathrao Deshpande Institute of Technology
-              </p>
-              <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#18221D] sm:text-4xl [text-wrap:balance]">
-                Connect with verified seniors for career &amp; project guidance
-              </h1>
-              <p className="mt-3 text-sm leading-relaxed text-stone-600">
-                PARTHA matches KLS VDIT students with verified alumni working across engineering teams, while keeping alumni contact details private until a request is accepted.
-              </p>
-            </div>
-
-            <div className="space-y-4 border-t border-[#E5DFD0] pt-5">
-              <div>
-                <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  1. Sign in with your role
-                </h2>
-                <p className="mt-0.5 text-xs text-stone-600">
-                  Separate login portals for Students, Alumni Mentors, and Placement Cell Admins.
+        {dbHealth && !dbConnected && (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-300 bg-amber-50/95 p-3.5 text-xs text-amber-950"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <Database className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+                <p className="leading-relaxed">
+                  {dbHealth.databaseError ||
+                    'Add DATABASE_URL in Settings → Secrets, then click Retry.'}
                 </p>
               </div>
-              <div>
-                <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  2. Find mentors who match your skills
-                </h2>
-                <p className="mt-0.5 text-xs text-stone-600">
-                  See why each alumnus fits your goals, read their interview guides, and send a mentorship request.
-                </p>
-              </div>
-              <div>
-                <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  3. Unlock contact when accepted
-                </h2>
-                <p className="mt-0.5 text-xs text-stone-600">
-                  Email, phone, and LinkedIn stay protected in PostgreSQL until the alumnus clicks Accept.
-                </p>
-              </div>
+              <button
+                type="button"
+                disabled={checkingConnection}
+                onClick={() => void onRetryHealth()}
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-[#FFFEFA] px-2.5 py-1 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${checkingConnection ? 'animate-spin' : ''}`}
+                />
+                Retry
+              </button>
             </div>
           </div>
+        )}
 
-          {/* 3-Role Authentication Card */}
-          <div className="lg:col-span-7 space-y-4">
-            {dbHealth && !dbConnected && (
-              <div
-                role="status"
-                className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 text-xs text-amber-950 space-y-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <Database className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
-                    <div>
-                      <p className="font-semibold text-amber-950">
-                        Connect your Supabase PostgreSQL database
-                      </p>
-                      <p className="mt-0.5 text-amber-900 leading-relaxed">
-                        {dbHealth.databaseError ||
-                          'Add DATABASE_URL (your Supabase connection pooler URI) in AI Studio Settings → Secrets, then click Retry Connection.'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={checkingConnection}
-                    onClick={() => void onRetryHealth()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-[#FFFEFA] px-3 py-1.5 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60 whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <RefreshCw
-                      className={`h-3 w-3 ${checkingConnection ? 'animate-spin' : ''}`}
+        <div className="rounded-2xl border border-[#E5DFD0] bg-[#FFFEFA]/95 p-6 shadow-[0_20px_50px_-24px_rgba(24,34,29,0.16)] backdrop-blur-md sm:p-7">
+          {/* Tactile Animated Role Switcher */}
+          <div
+            role="tablist"
+            aria-label="Choose Account Type"
+            className="grid grid-cols-3 gap-1 rounded-xl border border-[#E5DFD0] bg-[#F3EFE4] p-1"
+          >
+            {ROLE_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = role === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelectRole(tab.id)}
+                  className={`relative z-10 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 ${
+                    isSelected
+                      ? 'text-emerald-900'
+                      : 'text-stone-600 hover:text-[#18221D]'
+                  }`}
+                >
+                  {isSelected && (
+                    <motion.span
+                      layoutId="auth-role-indicator"
+                      transition={
+                        prefersReducedMotion
+                          ? { duration: 0 }
+                          : { type: 'spring', stiffness: 420, damping: 34 }
+                      }
+                      className="absolute inset-0 -z-10 rounded-lg border border-[#E5DFD0]/80 bg-[#FFFEFA] shadow-xs"
                     />
-                    Retry Connection
-                  </button>
-                </div>
-              </div>
-            )}
+                  )}
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 sm:p-7">
-              <div
-                role="tablist"
-                aria-label="Choose Account Type"
-                className="grid grid-cols-3 gap-1.5 rounded-lg border border-[#E5DFD0] bg-[#F3EFE4] p-1"
+          <div className="mt-5 flex items-center justify-between gap-3 border-b border-[#EEE9DC] pb-3.5">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.h1
+                key={headingTitle}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: EASE_EDITORIAL }}
+                className="font-display text-lg font-bold tracking-tight text-[#18221D]"
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={role === 'student'}
-                  onClick={() => handleSelectRole('student')}
-                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                    role === 'student'
-                      ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                      : 'text-stone-600 hover:text-[#18221D]'
-                  }`}
-                >
-                  <GraduationCap className="h-3.5 w-3.5 shrink-0" />
-                  Student
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={role === 'alumni'}
-                  onClick={() => handleSelectRole('alumni')}
-                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                    role === 'alumni'
-                      ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                      : 'text-stone-600 hover:text-[#18221D]'
-                  }`}
-                >
-                  <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                  Alumni
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={role === 'admin'}
-                  onClick={() => handleSelectRole('admin')}
-                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                    role === 'admin'
-                      ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                      : 'text-stone-600 hover:text-[#18221D]'
-                  }`}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  Admin
-                </button>
-              </div>
+                {headingTitle}
+              </motion.h1>
+            </AnimatePresence>
 
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-lg font-bold text-[#18221D]">
-                    {role === 'student'
-                      ? mode === 'login'
-                        ? 'Student Sign In'
-                        : mode === 'register'
-                          ? 'Create Student Account'
-                          : 'Reset Student Password'
-                      : role === 'alumni'
-                        ? mode === 'login'
-                          ? 'Alumni Mentor Sign In'
-                          : mode === 'register'
-                            ? 'Register as KLS VDIT Alumni'
-                            : 'Reset Alumni Password'
-                        : needsAdminClaim
-                          ? 'Initial Placement Cell Admin Setup'
-                          : 'Admin Verification Portal'}
-                  </h2>
-                  <p className="text-xs text-stone-500">
-                    {mode === 'forgot'
-                      ? 'Verify your registered email with a 6-digit code to set a new password.'
-                      : needsAdminClaim
-                        ? 'Create the first Placement & Alumni Cell admin account for this database.'
-                        : role === 'student'
-                          ? 'Use your KLS VDIT email or USN to browse mentors and opportunities.'
-                          : role === 'alumni'
-                            ? 'Review mentorship requests and share internships or prep guides.'
-                            : 'Placement & Alumni Cell access to verify alumni and manage Google Form intake.'}
-                  </p>
+            {role !== 'admin' &&
+              (mode === 'forgot' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setLoginSuccess(null);
+                    resetForgotState();
+                    switchAuthMode('login');
+                  }}
+                  className="text-xs font-semibold text-emerald-800 underline-offset-4 hover:text-emerald-950 hover:underline cursor-pointer whitespace-nowrap"
+                >
+                  Back to Sign In
+                </button>
+              ) : (
+                <div
+                  role="tablist"
+                  aria-label="Authentication Mode"
+                  className="inline-flex items-center rounded-lg border border-[#E5DFD0] bg-[#F3EFE4] p-0.5"
+                >
+                  {(
+                    [
+                      { id: 'login', label: 'Sign In' },
+                      { id: 'register', label: 'Register' },
+                    ] as const
+                  ).map((item) => {
+                    const active = mode === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => {
+                          if (mode === item.id) return;
+                          setError(null);
+                          setLoginSuccess(null);
+                          resetForgotState();
+                          switchAuthMode(item.id);
+                        }}
+                        className={`relative z-10 rounded-md px-3 py-1 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                          active
+                            ? 'text-emerald-900'
+                            : 'text-stone-600 hover:text-[#18221D]'
+                        }`}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId="auth-mode-indicator"
+                            transition={
+                              prefersReducedMotion
+                                ? { duration: 0 }
+                                : { type: 'spring', stiffness: 420, damping: 32 }
+                            }
+                            className="absolute inset-0 -z-10 rounded-md border border-[#E5DFD0]/80 bg-[#FFFEFA] shadow-xs"
+                          />
+                        )}
+                        {item.label}
+                      </button>
+                    );
+                  })}
                 </div>
+              ))}
+          </div>
 
-                {role !== 'admin' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      setLoginSuccess(null);
-                      resetForgotState();
-                      setMode(mode === 'login' ? 'register' : 'login');
-                    }}
-                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer whitespace-nowrap"
-                  >
-                    {mode === 'login'
-                      ? role === 'student'
-                        ? 'New student? Register'
-                        : 'New alumnus? Register'
-                      : mode === 'forgot'
-                        ? 'Back to Sign In'
-                        : 'Already registered? Sign In'}
-                  </button>
-                )}
-              </div>
-
-              {needsAdminClaim ? (
-                <form onSubmit={handleClaimAdmin} className="mt-5 space-y-4">
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs text-emerald-950">
-                    No Placement Cell Admin exists in Supabase PostgreSQL yet. Complete this one-time setup to claim Admin access.
+          <div className="mt-4 overflow-hidden">
+            <AnimatePresence mode="wait" initial={false} custom={slideDirection}>
+              <motion.div
+                key={viewKey}
+                custom={slideDirection}
+                variants={
+                  prefersReducedMotion
+                    ? {
+                        enter: { opacity: 0 },
+                        center: { opacity: 1 },
+                        exit: { opacity: 0 },
+                      }
+                    : {
+                        enter: (dir: 1 | -1) => ({
+                          opacity: 0,
+                          x: dir * 28,
+                        }),
+                        center: {
+                          opacity: 1,
+                          x: 0,
+                        },
+                        exit: (dir: 1 | -1) => ({
+                          opacity: 0,
+                          x: dir * -28,
+                        }),
+                      }
+                }
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: EASE_EDITORIAL }}
+                className="flex flex-col gap-4"
+              >
+                {needsAdminClaim ? (
+                  <form onSubmit={handleClaimAdmin} className="space-y-3.5 pt-0.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                      Admin Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={claimName}
+                      onChange={(e) => setClaimName(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Admin / Placement Cell Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={claimName}
-                        onChange={(e) => setClaimName(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Primary Department
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        Department
                       </label>
                       <select
                         value={claimBranch}
                         onChange={(e) => setClaimBranch(e.target.value as BranchCode)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={INPUT_CLASS}
                       >
                         {BRANCHES.map((b) => (
                           <option key={b} value={b}>
@@ -501,8 +552,8 @@ export function AuthScreen({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Official Admin Email
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        Email
                       </label>
                       <input
                         type="email"
@@ -510,24 +561,24 @@ export function AuthScreen({
                         value={claimEmail}
                         onChange={(e) => setClaimEmail(e.target.value)}
                         placeholder="placement@klsvdit.edu.in"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={INPUT_CLASS}
                       />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Admin Passcode (6+ characters)
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={claimPassword}
-                        onChange={(e) => setClaimPassword(e.target.value)}
-                        placeholder="Choose a strong passcode"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                      Passcode
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={claimPassword}
+                      onChange={(e) => setClaimPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      className={INPUT_CLASS}
+                    />
                   </div>
 
                   {error && (
@@ -543,17 +594,21 @@ export function AuthScreen({
                   <button
                     type="submit"
                     disabled={loading || !dbConnected}
-                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                   >
-                    {loading ? 'Setting up Admin...' : 'Claim Placement Cell Admin'}
+                    <span>{loading ? 'Setting up...' : 'Create Admin Account'}</span>
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   </button>
                 </form>
               ) : mode === 'login' || role === 'admin' ? (
-                <form onSubmit={handleLoginSubmit} className="mt-5 space-y-4">
+                <form onSubmit={handleLoginSubmit} className="space-y-3.5 pt-0.5">
                   {loginSuccess && (
                     <div
                       role="status"
-                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-900"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-900"
                     >
                       {loginSuccess}
                     </div>
@@ -564,11 +619,7 @@ export function AuthScreen({
                       htmlFor="login-identifier"
                       className="block text-xs font-semibold text-stone-700 mb-1"
                     >
-                      {role === 'student'
-                        ? 'College Email or USN'
-                        : role === 'alumni'
-                          ? 'Alumni Email or USN'
-                          : 'Admin Email'}
+                      {role === 'admin' ? 'Email' : 'Email or USN'}
                     </label>
                     <input
                       id="login-identifier"
@@ -577,13 +628,9 @@ export function AuthScreen({
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       placeholder={
-                        role === 'student'
-                          ? 'yourname@klsvdit.edu.in or 2VD23CS001'
-                          : role === 'alumni'
-                            ? 'alumni@company.com or 2VD19CS014'
-                            : 'placement@klsvdit.edu.in'
+                        role === 'admin' ? 'placement@klsvdit.edu.in' : 'Email or USN'
                       }
-                      className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                      className={INPUT_CLASS}
                     />
                   </div>
 
@@ -593,13 +640,13 @@ export function AuthScreen({
                         htmlFor="login-password"
                         className="block text-xs font-semibold text-stone-700"
                       >
-                        {role === 'admin' ? 'Admin Passcode' : 'Password'}
+                        {role === 'admin' ? 'Passcode' : 'Password'}
                       </label>
                       {role !== 'admin' && (
                         <button
                           type="button"
                           onClick={handleOpenForgotPassword}
-                          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                          className="text-xs font-semibold text-emerald-800 underline-offset-4 hover:text-emerald-950 hover:underline cursor-pointer"
                         >
                           Forgot password?
                         </button>
@@ -611,8 +658,8 @@ export function AuthScreen({
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                      placeholder="Enter password"
+                      className={INPUT_CLASS}
                     />
                   </div>
 
@@ -629,26 +676,24 @@ export function AuthScreen({
                   <button
                     type="submit"
                     disabled={loading || !dbConnected}
-                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                    className="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                   >
-                    {loading
-                      ? 'Signing in...'
-                      : role === 'student'
-                        ? 'Sign In as Student'
-                        : role === 'alumni'
-                          ? 'Sign In as Alumni'
-                          : 'Sign In as Admin'}
+                    <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   </button>
                 </form>
               ) : mode === 'forgot' ? (
                 resetStep === 'request' ? (
-                  <form onSubmit={handleRequestResetCode} className="mt-5 space-y-4">
+                  <form onSubmit={handleRequestResetCode} className="space-y-4">
                     <div>
                       <label
                         htmlFor="forgot-email"
-                        className="block text-xs font-semibold text-stone-700 mb-1"
+                        className="block text-xs font-semibold text-stone-700 mb-1.5"
                       >
-                        Registered {role === 'student' ? 'College' : 'Alumni'} Email
+                        Registered Email
                       </label>
                       <input
                         id="forgot-email"
@@ -656,12 +701,8 @@ export function AuthScreen({
                         required
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
-                        placeholder={
-                          role === 'student'
-                            ? 'student@klsvdit.edu.in'
-                            : 'alumni@company.com'
-                        }
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                        placeholder="you@example.com"
+                        className={INPUT_CLASS}
                       />
                     </div>
 
@@ -671,42 +712,39 @@ export function AuthScreen({
                       </p>
                     )}
 
-                    <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
+                    <div className="flex gap-2.5">
                       <button
                         type="submit"
                         disabled={loading || !dbConnected}
-                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                       >
-                        {loading ? 'Sending verification code...' : 'Send Reset Code'}
+                        {loading ? 'Sending...' : 'Send Code'}
                       </button>
                       <button
                         type="button"
                         onClick={() => {
                           setError(null);
                           resetForgotState();
-                          setMode('login');
+                          switchAuthMode('login');
                         }}
-                        className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] cursor-pointer whitespace-nowrap"
+                        className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] cursor-pointer"
                       >
                         Cancel
                       </button>
                     </div>
                   </form>
                 ) : (
-                  <form onSubmit={handleConfirmReset} className="mt-5 space-y-4">
+                  <form onSubmit={handleConfirmReset} className="space-y-4">
                     {resetNotice && (
                       <div
                         role="status"
-                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-900 space-y-1.5"
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs text-emerald-900 space-y-1.5"
                       >
-                        <p className="font-medium">{resetNotice}</p>
+                        <p>{resetNotice}</p>
                         {previewResetCode && (
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-200/80 pt-1.5">
-                            <span>
-                              Preview code:{' '}
-                              <span className="font-mono font-semibold text-emerald-950 tracking-wider">
-                                {previewResetCode}
-                              </span>
+                          <div className="flex items-center justify-between gap-2 border-t border-emerald-200/80 pt-1.5">
+                            <span className="font-mono font-semibold tracking-wider">
+                              {previewResetCode}
                             </span>
                             <button
                               type="button"
@@ -720,28 +758,14 @@ export function AuthScreen({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label
-                            htmlFor="reset-email-confirm"
-                            className="block text-xs font-semibold text-stone-700"
-                          >
-                            Registered Email
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setError(null);
-                              setResetStep('request');
-                              setResetNotice(null);
-                              setPreviewResetCode(null);
-                            }}
-                            className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer"
-                          >
-                            Change
-                          </button>
-                        </div>
+                        <label
+                          htmlFor="reset-email-confirm"
+                          className="block text-xs font-semibold text-stone-700 mb-1"
+                        >
+                          Email
+                        </label>
                         <input
                           id="reset-email-confirm"
                           type="email"
@@ -757,7 +781,7 @@ export function AuthScreen({
                           htmlFor="reset-code"
                           className="block text-xs font-semibold text-stone-700 mb-1"
                         >
-                          6-Digit Verification Code
+                          6-Digit Code
                         </label>
                         <input
                           id="reset-code"
@@ -768,7 +792,7 @@ export function AuthScreen({
                           value={resetCode}
                           onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
                           placeholder="123456"
-                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono tracking-widest focus:border-emerald-700 focus:outline-none"
+                          className={`${COMPACT_INPUT_CLASS} font-mono tracking-widest`}
                         />
                       </div>
 
@@ -786,8 +810,7 @@ export function AuthScreen({
                           minLength={4}
                           value={resetNewPassword}
                           onChange={(e) => setResetNewPassword(e.target.value)}
-                          placeholder="At least 4 characters"
-                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                          className={COMPACT_INPUT_CLASS}
                         />
                       </div>
 
@@ -796,7 +819,7 @@ export function AuthScreen({
                           htmlFor="reset-confirm-password"
                           className="block text-xs font-semibold text-stone-700 mb-1"
                         >
-                          Confirm New Password
+                          Confirm Password
                         </label>
                         <input
                           id="reset-confirm-password"
@@ -805,8 +828,7 @@ export function AuthScreen({
                           minLength={4}
                           value={resetConfirmPassword}
                           onChange={(e) => setResetConfirmPassword(e.target.value)}
-                          placeholder="Re-enter password"
-                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                          className={COMPACT_INPUT_CLASS}
                         />
                       </div>
                     </div>
@@ -817,13 +839,13 @@ export function AuthScreen({
                       </p>
                     )}
 
-                    <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
+                    <div className="flex gap-2.5">
                       <button
                         type="submit"
                         disabled={loading || !dbConnected}
-                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                       >
-                        {loading ? 'Updating password...' : 'Update Password'}
+                        {loading ? 'Updating...' : 'Update Password'}
                       </button>
                       <button
                         type="button"
@@ -831,14 +853,14 @@ export function AuthScreen({
                         onClick={() => handleRequestResetCode()}
                         className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] disabled:opacity-60 cursor-pointer whitespace-nowrap"
                       >
-                        Resend code
+                        Resend
                       </button>
                     </div>
                   </form>
                 )
               ) : role === 'student' ? (
-                <form onSubmit={handleStudentRegister} className="mt-5 space-y-3.5">
-                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <form onSubmit={handleStudentRegister} className="my-auto space-y-3">
+                  <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
                         Full Name
@@ -848,21 +870,20 @@ export function AuthScreen({
                         required
                         value={stuName}
                         onChange={(e) => setStuName(e.target.value)}
-                        placeholder="e.g., Priya Patil"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        KLS VDIT USN
+                        USN
                       </label>
                       <input
                         type="text"
                         required
                         value={stuUsn}
                         onChange={(e) => setStuUsn(e.target.value)}
-                        placeholder="e.g., 2VD23CS045"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono focus:border-emerald-700 focus:outline-none"
+                        placeholder="2VD23CS045"
+                        className={`${COMPACT_INPUT_CLASS} font-mono`}
                       />
                     </div>
                     <div>
@@ -872,7 +893,7 @@ export function AuthScreen({
                       <select
                         value={stuBranch}
                         onChange={(e) => setStuBranch(e.target.value as BranchCode)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       >
                         {BRANCHES.map((b) => (
                           <option key={b} value={b}>
@@ -891,20 +912,19 @@ export function AuthScreen({
                         max={8}
                         value={stuSemester}
                         onChange={(e) => setStuSemester(Number(e.target.value))}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
+                        className={`${COMPACT_INPUT_CLASS} tabular-nums`}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        College Email
+                        Email
                       </label>
                       <input
                         type="email"
                         required
                         value={stuEmail}
                         onChange={(e) => setStuEmail(e.target.value)}
-                        placeholder="student@klsvdit.edu.in"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -917,17 +937,17 @@ export function AuthScreen({
                         minLength={4}
                         value={stuPassword}
                         onChange={(e) => setStuPassword(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Interest Domain
+                        Domain
                       </label>
                       <select
                         value={stuDomain}
                         onChange={(e) => setStuDomain(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       >
                         {DOMAINS.map((d) => (
                           <option key={d} value={d}>
@@ -938,13 +958,13 @@ export function AuthScreen({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Skills You Want to Learn
+                        Skills
                       </label>
                       <input
                         type="text"
                         value={stuSkills}
                         onChange={(e) => setStuSkills(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                   </div>
@@ -958,16 +978,20 @@ export function AuthScreen({
                   <button
                     type="submit"
                     disabled={loading || !dbConnected}
-                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                    className="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                   >
-                    {loading ? 'Creating account...' : 'Create Student Account'}
+                    <span>{loading ? 'Creating account...' : 'Register'}</span>
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleAlumniRegister} className="mt-5 space-y-3.5">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <form onSubmit={handleAlumniRegister} className="my-auto space-y-3">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-3">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
                         Full Name
                       </label>
                       <input
@@ -975,70 +999,30 @@ export function AuthScreen({
                         required
                         value={aluName}
                         onChange={(e) => setAluName(e.target.value)}
-                        placeholder="e.g., Siddharth Rao"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        KLS VDIT USN
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        USN
                       </label>
                       <input
                         type="text"
                         required
                         value={aluUsn}
                         onChange={(e) => setAluUsn(e.target.value)}
-                        placeholder="e.g., 2VD18CS022"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono focus:border-emerald-700 focus:outline-none"
+                        placeholder="2VD19CS014"
+                        className={`${COMPACT_INPUT_CLASS} font-mono`}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Company
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={aluCompany}
-                        onChange={(e) => setAluCompany(e.target.value)}
-                        placeholder="e.g., Flipkart"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Current Role
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={aluRole}
-                        onChange={(e) => setAluRole(e.target.value)}
-                        placeholder="e.g., SDE II"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Graduation Year
-                      </label>
-                      <input
-                        type="number"
-                        min={1995}
-                        max={2035}
-                        value={aluGradYear}
-                        onChange={(e) => setAluGradYear(Number(e.target.value))}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
                         Branch
                       </label>
                       <select
                         value={aluBranch}
                         onChange={(e) => setAluBranch(e.target.value as BranchCode)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       >
                         {BRANCHES.map((b) => (
                           <option key={b} value={b}>
@@ -1048,13 +1032,50 @@ export function AuthScreen({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluCompany}
+                        onChange={(e) => setAluCompany(e.target.value)}
+                        className={COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Role
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluRole}
+                        onChange={(e) => setAluRole(e.target.value)}
+                        className={COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Grad Year
+                      </label>
+                      <input
+                        type="number"
+                        min={1995}
+                        max={2035}
+                        value={aluGradYear}
+                        onChange={(e) => setAluGradYear(Number(e.target.value))}
+                        className={`${COMPACT_INPUT_CLASS} tabular-nums`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
                         Domain
                       </label>
                       <select
                         value={aluDomain}
                         onChange={(e) => setAluDomain(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       >
                         {DOMAINS.map((d) => (
                           <option key={d} value={d}>
@@ -1064,55 +1085,54 @@ export function AuthScreen({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Skills (comma-separated)
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Skills
                       </label>
                       <input
                         type="text"
                         value={aluSkills}
                         onChange={(e) => setAluSkills(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Email (Gated until you accept)
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={aluEmail}
-                        onChange={(e) => setAluEmail(e.target.value)}
-                        placeholder="you@company.com"
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        Phone (Gated)
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Phone
                       </label>
                       <input
                         type="text"
                         value={aluPhone}
                         onChange={(e) => setAluPhone(e.target.value)}
                         placeholder="+91 98..."
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        LinkedIn URL (Gated)
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={aluEmail}
+                        onChange={(e) => setAluEmail(e.target.value)}
+                        className={COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
+                        LinkedIn URL
                       </label>
                       <input
                         type="url"
                         value={aluLinkedin}
                         onChange={(e) => setAluLinkedin(e.target.value)}
                         placeholder="https://linkedin.com/in/..."
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
                         Password
                       </label>
                       <input
@@ -1121,14 +1141,10 @@ export function AuthScreen({
                         minLength={4}
                         value={aluPassword}
                         onChange={(e) => setAluPassword(e.target.value)}
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        className={COMPACT_INPUT_CLASS}
                       />
                     </div>
                   </div>
-
-                  <p className="text-[11px] text-stone-500">
-                    New alumni accounts enter the Admin Verification Queue so Placement Cell can verify KLS VDIT details before listing.
-                  </p>
 
                   {error && (
                     <p className="text-xs font-medium text-red-600" role="alert">
@@ -1139,16 +1155,79 @@ export function AuthScreen({
                   <button
                     type="submit"
                     disabled={loading || !dbConnected}
-                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                    className="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-xs font-semibold text-white transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                   >
-                    {loading ? 'Submitting registration...' : 'Register for Verification'}
+                    <span>{loading ? 'Submitting...' : 'Register'}</span>
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   </button>
                 </form>
               )}
-            </div>
+
+                <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#EEE9DC] pt-3 text-xs text-stone-500">
+                  {role === 'admin' ? (
+                    <>
+                      <span>KLS VDIT · Placement &amp; Alumni Cell</span>
+                      <span className="font-medium text-stone-600">Authorized access</span>
+                    </>
+                  ) : mode === 'login' ? (
+                    <>
+                      <span>New to KLS VDIT PARTHA?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setLoginSuccess(null);
+                          resetForgotState();
+                          switchAuthMode('register');
+                        }}
+                        className="font-semibold text-emerald-800 hover:text-emerald-950 hover:underline underline-offset-4 cursor-pointer"
+                      >
+                        Create account
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span>Already have an account?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setLoginSuccess(null);
+                          resetForgotState();
+                          switchAuthMode('login');
+                        }}
+                        className="font-semibold text-emerald-800 hover:text-emerald-950 hover:underline underline-offset-4 cursor-pointer"
+                      >
+                        Sign in instead
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
-      </main>
+      </motion.div>
+  );
+
+  return (
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF7F0] text-[#18221D]">
+      <img
+        src="/assets/aistudio/24506908-d5d7-4763-8b9b-3051f12b91ef_71482280.png"
+        alt="PARTHA guiding your journey chariot illustration"
+        referrerPolicy="no-referrer"
+        className="pointer-events-none fixed inset-0 h-full w-full select-none object-cover object-left lg:object-center"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 bg-[#FAF7F0]/75 backdrop-blur-[2px] lg:bg-gradient-to-r lg:from-transparent lg:via-[#FAF7F0]/25 lg:to-[#FAF7F0]/70 lg:backdrop-blur-none"
+      />
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1380px] items-center justify-center px-4 py-8 sm:px-8 lg:justify-end lg:px-14 xl:px-20">
+        {authCardContent}
+      </div>
     </div>
   );
 }

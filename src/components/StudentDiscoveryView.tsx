@@ -15,6 +15,7 @@ import type {
 } from '../types';
 import { evaluateAlumniMatch } from '../utils/matchingEngine';
 import { AlumniCard } from './AlumniCard';
+import { DiscoverySkeletonGrid } from './SkeletonLoaders';
 
 interface StudentDiscoveryViewProps {
   alumni: AlumniProfile[];
@@ -400,11 +401,18 @@ export function StudentDiscoveryView({
           </div>
 
           <div className="flex items-center gap-3 text-xs text-stone-500">
-            <span className="tabular-nums">
-              {totalCount === 0
-                ? '0 mentors'
-                : `Showing ${rankedMatches.length} of ${totalCount} mentors`}
-            </span>
+            {loading ? (
+              <span
+                aria-hidden="true"
+                className="inline-block h-3.5 w-28 rounded bg-[#EEE9DC] motion-safe:animate-pulse"
+              />
+            ) : (
+              <span className="tabular-nums">
+                {totalCount === 0
+                  ? '0 mentors'
+                  : `Showing ${rankedMatches.length} of ${totalCount} mentors`}
+              </span>
+            )}
             {hasActiveFilters && (
               <button
                 type="button"
@@ -423,32 +431,7 @@ export function StudentDiscoveryView({
       </section>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {[1, 2, 3, 4].map((n) => (
-            <div
-              key={n}
-              className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-4 animate-pulse"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="h-10 w-10 rounded-full bg-[#EEE9DC]" />
-                  <div className="space-y-2">
-                    <div className="h-4 w-36 rounded bg-[#EEE9DC]" />
-                    <div className="h-3.5 w-48 rounded bg-[#F3EFE4]" />
-                    <div className="h-3 w-32 rounded bg-[#F3EFE4]" />
-                  </div>
-                </div>
-                <div className="h-7 w-12 rounded bg-[#EEE9DC]" />
-              </div>
-              <div className="h-11 w-full rounded-lg bg-[#F3EFE4]" />
-              <div className="h-4 w-3/4 rounded bg-[#F3EFE4]" />
-              <div className="flex items-center justify-between border-t border-[#EEE9DC] pt-3">
-                <div className="h-5 w-28 rounded bg-[#F3EFE4]" />
-                <div className="h-8 w-32 rounded-lg bg-[#EEE9DC]" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <DiscoverySkeletonGrid role={role} />
       ) : rankedMatches.length === 0 ? (
         <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-6 py-12 text-center">
           <h3 className="font-display text-base font-semibold text-[#18221D]">

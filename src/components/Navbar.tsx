@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { AuthUser } from '../types';
+import { Avatar } from './Avatar';
 
 export type ActiveTab =
   | 'discover'
@@ -216,13 +217,21 @@ export function Navbar({
 
           {/* Zone 3: Signed-in Account & Sign Out */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <span className="text-xs text-stone-600 whitespace-nowrap">
-              <strong className="font-semibold text-[#18221D]">{user.name}</strong>
-              <span aria-hidden="true" className="mx-1.5 text-stone-300">
-                ·
+            <button
+              type="button"
+              onClick={() => onChangeTab('profile')}
+              className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-[#FAF7F0] transition-colors cursor-pointer"
+              title="Open My Details & Avatar"
+            >
+              <Avatar name={user.name} src={user.avatarUrl} size="sm" />
+              <span className="hidden sm:inline text-xs text-stone-600 whitespace-nowrap">
+                <strong className="font-semibold text-[#18221D]">{user.name}</strong>
+                <span aria-hidden="true" className="mx-1.5 text-stone-300">
+                  ·
+                </span>
+                <span>{roleLabel}</span>
               </span>
-              <span>{roleLabel}</span>
-            </span>
+            </button>
 
             <button
               type="button"

@@ -224,6 +224,7 @@ export const parthaApi = {
     contactEmail: string;
     phone: string;
     linkedinUrl: string;
+    avatarUrl?: string;
   }): Promise<{ user: AuthUser; alumni: AlumniProfile }> {
     return requestJson<{ user: AuthUser; alumni: AlumniProfile }>(
       '/api/alumni/me',

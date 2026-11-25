@@ -13,6 +13,7 @@ import type {
   BranchCode,
   StudentTargetProfile,
 } from '../types';
+import { ProfileAvatarEditor } from './ProfileAvatarEditor';
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
 const DOMAINS = [
@@ -45,6 +46,7 @@ interface ProfileDetailsViewProps {
     contactEmail: string;
     phone: string;
     linkedinUrl: string;
+    avatarUrl?: string;
   }) => Promise<void>;
   onSaveAdmin: (payload: {
     name: string;
@@ -119,6 +121,9 @@ export function ProfileDetailsView({
   const [aluLinkedin, setAluLinkedin] = useState(
     alumniProfile?.contact?.linkedinUrl ?? '',
   );
+  const [aluAvatarUrl, setAluAvatarUrl] = useState(
+    alumniProfile?.avatarUrl ?? user.avatarUrl ?? '',
+  );
 
   // Admin form state
   const [admName, setAdmName] = useState(user.name);
@@ -159,8 +164,11 @@ export function ProfileDetailsView({
       setAluContactEmail(alumniProfile.contact?.email || user.email);
       setAluPhone(alumniProfile.contact?.phone ?? '');
       setAluLinkedin(alumniProfile.contact?.linkedinUrl ?? '');
+      setAluAvatarUrl(alumniProfile.avatarUrl ?? user.avatarUrl ?? '');
+    } else {
+      setAluAvatarUrl(user.avatarUrl ?? '');
     }
-  }, [alumniProfile, user.email]);
+  }, [alumniProfile, user.email, user.avatarUrl]);
 
   useEffect(() => {
     setAdmName(user.name);
@@ -229,6 +237,7 @@ export function ProfileDetailsView({
         contactEmail: aluContactEmail.trim() || user.email,
         phone: aluPhone.trim(),
         linkedinUrl: aluLinkedin.trim(),
+        avatarUrl: aluAvatarUrl,
       });
       markSaved();
     } catch (err) {
@@ -238,6 +247,33 @@ export function ProfileDetailsView({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleSaveAlumniAvatar(nextAvatarUrl: string) {
+    const parsedSkills = aluSkills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setAluAvatarUrl(nextAvatarUrl);
+    await onSaveAlumni({
+      name: aluName.trim() || user.name,
+      regNumber: aluUsn.trim().toUpperCase(),
+      graduationYear: aluGradYear,
+      branch: aluBranch,
+      role: aluRole.trim(),
+      company: aluCompany.trim(),
+      domain: aluDomain,
+      skills: parsedSkills.length > 0 ? parsedSkills : [aluDomain],
+      location: aluLocation.trim() || 'Bengaluru',
+      bio: aluBio.trim(),
+      openToInternshipReferrals: aluInternship,
+      openToProjectMentoring: aluProject,
+      contactEmail: aluContactEmail.trim() || user.email,
+      phone: aluPhone.trim(),
+      linkedinUrl: aluLinkedin.trim(),
+      avatarUrl: nextAvatarUrl,
+    });
+    markSaved();
   }
 
   async function handleAdminSubmit(e: FormEvent) {
@@ -331,10 +367,21 @@ export function ProfileDetailsView({
       )}
 
       {user.role === 'student' ? (
-        <form
-          onSubmit={handleStudentSubmit}
-          className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 space-y-5"
-        >
+        <div className="space-y-5">
+          <ProfileAvatarEditor
+            displayName={stuName || user.name}
+            avatarUrl={studentProfile.avatarUrl ?? user.avatarUrl}
+            roleLabel="Student"
+            onSaveAvatar={async (nextAvatarUrl) => {
+              await onSaveStudent({ avatarUrl: nextAvatarUrl });
+              markSaved();
+            }}
+          />
+
+          <form
+            onSubmit={handleStudentSubmit}
+            className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 space-y-5"
+          >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
@@ -483,9 +530,18 @@ export function ProfileDetailsView({
               {saving ? 'Saving...' : 'Save Student Details'}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       ) : user.role === 'alumni' ? (
-        <form onSubmit={handleAlumniSubmit} className="space-y-5">
+        <div className="space-y-5">
+          <ProfileAvatarEditor
+            displayName={aluName || user.name}
+            avatarUrl={aluAvatarUrl}
+            roleLabel="Alumni Mentor"
+            onSaveAvatar={handleSaveAlumniAvatar}
+          />
+
+          <form onSubmit={handleAlumniSubmit} className="space-y-5">
           <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 space-y-4">
             <h2 className="font-display text-base font-semibold text-[#18221D]">
               Public Alumni Profile
@@ -718,7 +774,8 @@ export function ProfileDetailsView({
               </button>
             </div>
           </div>
-        </form>
+          </form>
+        </div>
       ) : (
         <form
           onSubmit={handleAdminSubmit}

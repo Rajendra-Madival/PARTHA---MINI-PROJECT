@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createFace, FaceArt } from './kokonutui/avatar-picker';
 
 interface AvatarProps {
   name: string;
@@ -15,12 +16,29 @@ function getInitials(name: string): string {
 export function Avatar({ name, src, size = 'md' }: AvatarProps) {
   const [imgFailed, setImgFailed] = useState(false);
 
+  useEffect(() => {
+    setImgFailed(false);
+  }, [src]);
+
   const sizeClass =
     size === 'sm'
       ? 'h-9 w-9 text-xs'
       : size === 'lg'
         ? 'h-14 w-14 text-base'
         : 'h-12 w-12 text-sm';
+
+  if (src && src.startsWith('kokonut:')) {
+    const seed = src.slice('kokonut:'.length).trim() || name.toLowerCase();
+    return (
+      <div
+        role="img"
+        aria-label={`${name} avatar`}
+        className={`${sizeClass} shrink-0 overflow-hidden rounded-lg border border-[#E5DFD0] bg-[#F3EFE4]`}
+      >
+        <FaceArt face={createFace(seed)} className="h-full w-full" />
+      </div>
+    );
+  }
 
   if (src && !imgFailed) {
     return (
@@ -43,3 +61,4 @@ export function Avatar({ name, src, size = 'md' }: AvatarProps) {
     </div>
   );
 }
+
