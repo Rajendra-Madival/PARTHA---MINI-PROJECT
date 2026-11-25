@@ -17,15 +17,34 @@ export type OpportunityType =
 
 export type BranchCode = 'CSE' | 'ISE' | 'ECE' | 'ME' | 'EEE';
 
+export interface DatabaseHealthStatus {
+  status: string;
+  platform: string;
+  databaseConfigured: boolean;
+  databaseConnected: boolean;
+  databaseError?: string;
+}
+
+export interface AdminBootstrapStatus {
+  hasAdmin: boolean;
+  passcodeConfigured: boolean;
+}
+
 export interface AuthUser {
   id: string;
   role: UserRole;
   name: string;
   email: string;
   subtitle: string;
+  branch?: BranchCode;
   isAdminAccount?: boolean;
   verificationStatus?: VerificationStatus;
   studentProfile?: StudentTargetProfile;
+}
+
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
 }
 
 export interface AlumniContact {
@@ -75,6 +94,7 @@ export interface StudentTargetProfile {
   targetSkills: string[];
   targetDomain: string;
   targetCompany: string;
+  resumeUrl: string;
   lookingForInternship: boolean;
   lookingForProjectHelp: boolean;
 }
@@ -93,6 +113,7 @@ export interface MentorshipMessage {
   senderRole: UserRole;
   text: string;
   sentAt: string;
+  createdAt?: string;
 }
 
 export interface MentorshipSessionBooking {
@@ -124,6 +145,7 @@ export interface MentorshipRequest {
   status: MentorshipStatus;
   createdAt: string;
   respondedAt?: string;
+  unreadCount: number;
   unlockedContact: AlumniContact | null;
   messages: MentorshipMessage[];
   sessionBooking: MentorshipSessionBooking | null;
@@ -177,15 +199,25 @@ export interface DomainMetric {
   guideCount: number;
 }
 
+export interface BranchMetric {
+  branch: BranchCode;
+  alumniCount: number;
+}
+
 export interface AdminMetrics {
   totalVerifiedAlumni: number;
   pendingVerifications: number;
+  rejectedVerifications: number;
   activeMentorshipConnections: number;
   pendingMentorshipRequests: number;
+  declinedMentorshipRequests: number;
+  totalSessionsBooked: number;
+  confirmedSessionsCount: number;
   opportunitiesShared: number;
   knowledgeGuidesCount: number;
   totalGuideUpvotes: number;
   topDomains: DomainMetric[];
+  branchBreakdown: BranchMetric[];
 }
 
 export interface DiscoveryFilters {
@@ -198,6 +230,43 @@ export interface DiscoveryFilters {
   projectHelpOnly: boolean;
   savedOnly: boolean;
   sortBy: 'match' | 'upvotes' | 'batch';
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export interface AlumniDiscoveryResponse extends PaginatedResponse<AlumniProfile> {
+  facets: {
+    skills: string[];
+    companies: string[];
+    roles: string[];
+    domains: string[];
+  };
+}
+
+export interface OpportunitiesPaginatedResponse extends PaginatedResponse<Opportunity> {
+  domains: string[];
+}
+
+export interface GuidesPaginatedResponse extends PaginatedResponse<KnowledgeGuide> {
+  domains: string[];
+}
+
+export interface ParthaNotification {
+  id: string;
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+  emailSent: boolean;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export interface SeniorIntakeForm {

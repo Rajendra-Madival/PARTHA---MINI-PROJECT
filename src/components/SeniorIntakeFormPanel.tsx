@@ -17,15 +17,11 @@ import {
   getWorkspaceAccessToken,
   requestGoogleFormsPermission,
 } from '../lib/firebase';
+import { parthaApi } from '../services/api';
 import {
   createSeniorIntakeGoogleForm,
   fetchSeniorFormResponses,
 } from '../services/googleForms';
-import {
-  importSeniorFormResponse,
-  listImportedResponseIds,
-  saveSeniorIntakeForm,
-} from '../services/parthaFirestore';
 import type {
   AuthUser,
   FormResponsePreview,
@@ -133,9 +129,14 @@ export function SeniorIntakeFormPanel({
         { uid: user.id, email: user.email },
         customTitle,
       );
-      await saveSeniorIntakeForm(form);
-      onFormCreated(form);
-      setSelectedFormId(form.formId);
+      const saved = await parthaApi.saveSeniorIntakeForm({
+        formId: form.formId,
+        title: form.title,
+        responderUri: form.responderUri,
+        editUri: form.editUri,
+      });
+      onFormCreated(saved);
+      setSelectedFormId(saved.formId);
       onNotify('Live Google Form created! Copy or float it on WhatsApp now.');
     } catch (err) {
       const msg =
@@ -155,9 +156,8 @@ export function SeniorIntakeFormPanel({
     setSyncing(true);
     try {
       const token = await ensureToken();
-      const importedIds = await listImportedResponseIds(
+      const importedIds = await parthaApi.listImportedResponseIds(
         activeForm.formId,
-        user.id,
       );
       const list = await fetchSeniorFormResponses(
         token,
@@ -190,10 +190,9 @@ export function SeniorIntakeFormPanel({
     setError(null);
     setImportingId(row.responseId);
     try {
-      await importSeniorFormResponse(
+      await parthaApi.importSeniorFormResponses(
         activeForm.formId,
-        row,
-        user.id,
+        [row],
         autoVerify,
       );
       setResponses((prev) =>
@@ -228,9 +227,11 @@ export function SeniorIntakeFormPanel({
     setError(null);
     setImportingAll(true);
     try {
-      for (const row of pendingRows) {
-        await importSeniorFormResponse(activeForm.formId, row, user.id, true);
-      }
+      await parthaApi.importSeniorFormResponses(
+        activeForm.formId,
+        pendingRows,
+        true,
+      );
       setResponses((prev) =>
         prev ? prev.map((r) => ({ ...r, alreadyImported: true })) : prev,
       );
@@ -274,7 +275,7 @@ export function SeniorIntakeFormPanel({
             Senior Intake Google Form
           </h1>
           <p className="mt-1 text-sm text-stone-600 max-w-2xl">
-            Generate a live Google Form in your Google account, float the WhatsApp invite in KLS VDIT senior groups, and sync replies straight into PARTHA.
+            Generate a live Google Form in your Google account, float the WhatsApp invite in KLS VDIT senior groups, and sync replies straight into Supabase PostgreSQL.
           </p>
         </div>
 
@@ -608,7 +609,7 @@ export function SeniorIntakeFormPanel({
             </div>
 
             <p className="text-[11px] text-stone-500 border-t border-[#EEE9DC] pt-3">
-              Imported contact fields (Email, WhatsApp, LinkedIn) are automatically stored in Firestore&apos;s privacy-gated subcollection and remain hidden from students until mentorship acceptance.
+              Imported contact fields (Email, WhatsApp, LinkedIn) are automatically stored in Supabase PostgreSQL&apos;s privacy-gated table and remain hidden from students until mentorship acceptance.
             </p>
           </section>
         </div>

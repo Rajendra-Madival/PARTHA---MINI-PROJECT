@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BarChart3,
   Briefcase,
   Check,
   Clock,
@@ -16,6 +17,7 @@ import { Avatar } from './Avatar';
 interface AdminDashboardViewProps {
   allAlumni: AlumniProfile[];
   metrics: AdminMetrics | null;
+  loading?: boolean;
   onVerify: (alumniId: string) => Promise<void>;
   onReject: (alumniId: string) => Promise<void>;
   onOpenSeniorForm?: () => void;
@@ -32,6 +34,7 @@ function escapeCsvCell(value: string | number): string {
 export function AdminDashboardView({
   allAlumni,
   metrics,
+  loading = false,
   onVerify,
   onReject,
   onOpenSeniorForm,
@@ -40,6 +43,21 @@ export function AdminDashboardView({
 
   const pendingQueue = allAlumni.filter((a) => a.verificationStatus === 'pending');
   const verifiedList = allAlumni.filter((a) => a.verificationStatus === 'verified');
+
+  const topDomains = metrics?.topDomains ?? [];
+  const maxDomainTotal = Math.max(
+    1,
+    ...topDomains.map((d) => d.alumniCount + d.guideCount),
+  );
+  const branchBreakdown = metrics?.branchBreakdown ?? [];
+  const maxBranchCount = Math.max(
+    1,
+    ...branchBreakdown.map((b) => b.alumniCount),
+  );
+  const totalRequestsSent =
+    (metrics?.activeMentorshipConnections ?? 0) +
+    (metrics?.pendingMentorshipRequests ?? 0) +
+    (metrics?.declinedMentorshipRequests ?? 0);
 
   function handleDownloadCsv() {
     const header = [
@@ -124,75 +142,213 @@ export function AdminDashboardView({
         )}
       </section>
 
-      <section
-        aria-label="Platform Metrics"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-            <span>Total Verified Alumni</span>
-            <ShieldCheck className="h-4 w-4 text-emerald-800" aria-hidden="true" />
-          </div>
-          <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
-            {metrics?.totalVerifiedAlumni ?? verifiedList.length}
-          </p>
-          <p className="mt-1 text-xs text-stone-500 tabular-nums">
-            {pendingQueue.length} awaiting review
-          </p>
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div
+              key={n}
+              className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-3 animate-pulse"
+            >
+              <div className="h-3.5 w-32 rounded bg-[#F3EFE4]" />
+              <div className="h-7 w-16 rounded bg-[#EEE9DC]" />
+              <div className="h-3 w-28 rounded bg-[#F3EFE4]" />
+            </div>
+          ))}
         </div>
+      ) : (
+        <>
+          <section
+            aria-label="Platform Metrics"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Total Verified Alumni</span>
+                <ShieldCheck className="h-4 w-4 text-emerald-800" aria-hidden="true" />
+              </div>
+              <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
+                {metrics?.totalVerifiedAlumni ?? verifiedList.length}
+              </p>
+              <p className="mt-1 text-xs text-stone-500 tabular-nums">
+                {pendingQueue.length} awaiting review
+              </p>
+            </div>
 
-        <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-            <span>Active Mentorship Connections</span>
-            <Users className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-          </div>
-          <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
-            {metrics?.activeMentorshipConnections ?? 0}
-          </p>
-          <p className="mt-1 text-xs text-stone-500 tabular-nums">
-            {metrics?.pendingMentorshipRequests ?? 0} pending requests
-          </p>
-        </div>
+            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Active Mentorship Connections</span>
+                <Users className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+              </div>
+              <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
+                {metrics?.activeMentorshipConnections ?? 0}
+              </p>
+              <p className="mt-1 text-xs text-stone-500 tabular-nums">
+                {metrics?.pendingMentorshipRequests ?? 0} pending requests
+              </p>
+            </div>
 
-        <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-            <span>Opportunities Shared</span>
-            <Briefcase className="h-4 w-4 text-emerald-800" aria-hidden="true" />
-          </div>
-          <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
-            {metrics?.opportunitiesShared ?? 0}
-          </p>
-          <p className="mt-1 text-xs text-stone-500 tabular-nums">
-            {metrics?.knowledgeGuidesCount ?? 0} guides ·{' '}
-            {metrics?.totalGuideUpvotes ?? 0} upvotes
-          </p>
-        </div>
+            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Opportunities Shared</span>
+                <Briefcase className="h-4 w-4 text-emerald-800" aria-hidden="true" />
+              </div>
+              <p className="mt-2 font-mono text-2xl font-semibold text-[#18221D] tabular-nums">
+                {metrics?.opportunitiesShared ?? 0}
+              </p>
+              <p className="mt-1 text-xs text-stone-500 tabular-nums">
+                {metrics?.knowledgeGuidesCount ?? 0} guides ·{' '}
+                {metrics?.totalGuideUpvotes ?? 0} upvotes
+              </p>
+            </div>
 
-        <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-            <span>Top Domains</span>
-          </div>
-          {(metrics?.topDomains ?? []).length === 0 ? (
-            <p className="mt-2 text-xs text-stone-500">
-              No verified domains yet
-            </p>
-          ) : (
-            <ul className="mt-2 space-y-1 text-xs">
-              {(metrics?.topDomains ?? []).slice(0, 3).map((d) => (
-                <li
-                  key={d.domain}
-                  className="flex items-center justify-between gap-2 text-stone-700"
-                >
-                  <span className="truncate">{d.domain}</span>
-                  <span className="font-mono font-medium text-[#18221D] tabular-nums shrink-0">
-                    {d.alumniCount}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5">
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Top Domains</span>
+              </div>
+              {topDomains.length === 0 ? (
+                <p className="mt-2 text-xs text-stone-500">
+                  No verified domains yet
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1 text-xs">
+                  {topDomains.slice(0, 3).map((d) => (
+                    <li
+                      key={d.domain}
+                      className="flex items-center justify-between gap-2 text-stone-700"
+                    >
+                      <span className="truncate">{d.domain}</span>
+                      <span className="font-mono font-medium text-[#18221D] tabular-nums shrink-0">
+                        {d.alumniCount}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          {/* Engagement & Domain Analytics */}
+          <section
+            aria-label="Engagement and Domain Analytics"
+            className="grid grid-cols-1 gap-4 lg:grid-cols-12"
+          >
+            <div className="lg:col-span-7 rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <BarChart3
+                    className="h-4 w-4 text-emerald-800"
+                    aria-hidden="true"
+                  />
+                  <h2 className="font-display text-sm font-semibold text-[#18221D]">
+                    Domain Distribution (Verified Alumni &amp; Prep Guides)
+                  </h2>
+                </div>
+                <span className="text-[11px] text-stone-500">
+                  Live Supabase SQL counts
+                </span>
+              </div>
+
+              {topDomains.length === 0 ? (
+                <p className="py-6 text-center text-xs text-stone-500">
+                  Verify alumni profiles or import Google Form replies to view domain breakdown.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {topDomains.map((d) => {
+                    const combined = d.alumniCount + d.guideCount;
+                    const widthPct = Math.max(
+                      8,
+                      Math.round((combined / maxDomainTotal) * 100),
+                    );
+                    return (
+                      <div key={d.domain} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-[#18221D]">
+                            {d.domain}
+                          </span>
+                          <span className="font-mono text-stone-600 tabular-nums">
+                            {d.alumniCount} alumni · {d.guideCount} guides
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-[#F3EFE4]">
+                          <div
+                            className="h-full rounded-full bg-emerald-800 transition-all"
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-5 rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-5">
+              <div className="space-y-2.5">
+                <h2 className="font-display text-sm font-semibold text-[#18221D]">
+                  Mentorship Funnel
+                </h2>
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] p-3">
+                    <p className="text-stone-500">Requests Sent</p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-[#18221D] tabular-nums">
+                      {totalRequestsSent}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] p-3">
+                    <p className="text-stone-500">Accepted</p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-emerald-800 tabular-nums">
+                      {metrics?.activeMentorshipConnections ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] p-3">
+                    <p className="text-stone-500">Calls Booked</p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-[#18221D] tabular-nums">
+                      {metrics?.totalSessionsBooked ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] p-3">
+                    <p className="text-stone-500">Calls Confirmed</p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-emerald-800 tabular-nums">
+                      {metrics?.confirmedSessionsCount ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-[#EEE9DC] pt-3.5 space-y-2">
+                <h3 className="text-xs font-semibold text-[#18221D]">
+                  Verified Alumni by Branch
+                </h3>
+                <div className="space-y-2">
+                  {branchBreakdown.map((b) => {
+                    const widthPct =
+                      b.alumniCount === 0
+                        ? 0
+                        : Math.max(8, Math.round((b.alumniCount / maxBranchCount) * 100));
+                    return (
+                      <div key={b.branch} className="flex items-center gap-3 text-xs">
+                        <span className="w-8 font-mono font-medium text-stone-700">
+                          {b.branch}
+                        </span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#F3EFE4]">
+                          <div
+                            className="h-full rounded-full bg-emerald-700"
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                        <span className="w-6 text-right font-mono text-stone-600 tabular-nums">
+                          {b.alumniCount}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -241,7 +397,10 @@ export function AdminDashboardView({
                         </p>
 
                         <p className="text-xs text-stone-500 tabular-nums">
-                          USN: <span className="font-mono text-stone-700">{item.regNumber}</span>
+                          USN:{' '}
+                          <span className="font-mono text-stone-700">
+                            {item.regNumber}
+                          </span>
                           <span aria-hidden="true" className="mx-1.5">
                             ·
                           </span>
@@ -256,12 +415,16 @@ export function AdminDashboardView({
                           {item.location}
                         </p>
 
-                        <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
-                          {item.bio}
-                        </p>
+                        {item.bio && (
+                          <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
+                            {item.bio}
+                          </p>
+                        )}
 
                         <p className="text-xs text-stone-500">
-                          <span className="font-medium text-stone-700">Skills: </span>
+                          <span className="font-medium text-stone-700">
+                            Skills:{' '}
+                          </span>
                           {item.skills.join(' · ')}
                         </p>
                       </div>

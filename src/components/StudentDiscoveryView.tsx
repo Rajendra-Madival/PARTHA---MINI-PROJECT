@@ -1,5 +1,11 @@
-import { RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   AlumniProfile,
   DiscoveryFilters,
@@ -7,11 +13,23 @@ import type {
   StudentTargetProfile,
   UserRole,
 } from '../types';
-import { filterAndRankAlumni } from '../utils/matchingEngine';
+import { evaluateAlumniMatch } from '../utils/matchingEngine';
 import { AlumniCard } from './AlumniCard';
 
 interface StudentDiscoveryViewProps {
   alumni: AlumniProfile[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
+  facets: {
+    skills: string[];
+    companies: string[];
+    roles: string[];
+    domains: string[];
+  };
+  filters: DiscoveryFilters;
+  onFiltersChange: (next: DiscoveryFilters) => void;
+  onPageChange: (nextPage: number) => void;
   studentProfile: StudentTargetProfile;
   mentorships: MentorshipRequest[];
   savedAlumniIds: string[];
@@ -23,7 +41,7 @@ interface StudentDiscoveryViewProps {
   onOpenGuide: (guideId: string) => void;
 }
 
-const DEFAULT_FILTERS: DiscoveryFilters = {
+export const DEFAULT_DISCOVERY_FILTERS: DiscoveryFilters = {
   search: '',
   skill: 'All',
   company: 'All',
@@ -37,6 +55,13 @@ const DEFAULT_FILTERS: DiscoveryFilters = {
 
 export function StudentDiscoveryView({
   alumni,
+  totalCount,
+  page,
+  totalPages,
+  facets,
+  filters,
+  onFiltersChange,
+  onPageChange,
   studentProfile,
   mentorships,
   savedAlumniIds,
@@ -47,7 +72,7 @@ export function StudentDiscoveryView({
   onRequestMentorship,
   onOpenGuide,
 }: StudentDiscoveryViewProps) {
-  const [filters, setFilters] = useState<DiscoveryFilters>(DEFAULT_FILTERS);
+  const [searchDraft, setSearchDraft] = useState(filters.search);
   const [editingGoals, setEditingGoals] = useState(false);
   const [goalSkillsInput, setGoalSkillsInput] = useState(
     studentProfile.targetSkills.join(', '),
@@ -55,41 +80,26 @@ export function StudentDiscoveryView({
   const [goalDomain, setGoalDomain] = useState(studentProfile.targetDomain);
   const [goalCompany, setGoalCompany] = useState(studentProfile.targetCompany);
 
-  const verifiedAlumni = useMemo(
-    () => alumni.filter((a) => a.verificationStatus === 'verified'),
-    [alumni],
-  );
+  useEffect(() => {
+    setSearchDraft(filters.search);
+  }, [filters.search]);
 
-  const filterOptions = useMemo(() => {
-    const skills = new Set<string>();
-    const companies = new Set<string>();
-    const roles = new Set<string>();
-    const domains = new Set<string>();
-
-    for (const a of verifiedAlumni) {
-      a.skills.forEach((s) => skills.add(s));
-      companies.add(a.company);
-      roles.add(a.role);
-      domains.add(a.domain);
-    }
-
-    return {
-      skills: ['All', ...Array.from(skills).sort()],
-      companies: ['All', ...Array.from(companies).sort()],
-      roles: ['All', ...Array.from(roles).sort()],
-      domains: ['All', ...Array.from(domains).sort()],
-    };
-  }, [verifiedAlumni]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchDraft !== filters.search) {
+        onFiltersChange({ ...filters, search: searchDraft });
+      }
+    }, 260);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchDraft]);
 
   const rankedMatches = useMemo(
     () =>
-      filterAndRankAlumni(
-        verifiedAlumni,
-        studentProfile,
-        filters,
-        savedAlumniIds,
-      ),
-    [verifiedAlumni, studentProfile, filters, savedAlumniIds],
+      alumni
+        .filter((a) => a.verificationStatus === 'verified')
+        .map((a) => evaluateAlumniMatch(a, studentProfile, filters)),
+    [alumni, studentProfile, filters],
   );
 
   const mentorshipByAlumniId = useMemo(() => {
@@ -210,7 +220,7 @@ export function StudentDiscoveryView({
                     'Embedded & Robotics',
                     'Data Engineering',
                     'Cybersecurity & Infra',
-                    ...filterOptions.domains.filter((d) => d !== 'All'),
+                    ...facets.domains,
                   ]),
                 ).map((d) => (
                   <option key={d} value={d}>
@@ -253,8 +263,8 @@ export function StudentDiscoveryView({
             />
             <input
               type="search"
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
               placeholder="Search by mentor name, skill, company, or guide..."
               aria-label="Search alumni"
               className="w-full rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] py-2 pl-10 pr-4 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-emerald-700 focus:bg-white focus:outline-none"
@@ -265,7 +275,7 @@ export function StudentDiscoveryView({
             aria-label="Sort mentors"
             value={filters.sortBy}
             onChange={(e) =>
-              setFilters({
+              onFiltersChange({
                 ...filters,
                 sortBy: e.target.value as DiscoveryFilters['sortBy'],
               })
@@ -282,65 +292,65 @@ export function StudentDiscoveryView({
           <select
             aria-label="Filter by Skill"
             value={filters.skill}
-            onChange={(e) => setFilters({ ...filters, skill: e.target.value })}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, skill: e.target.value })
+            }
             className="rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-xs text-stone-700 focus:border-emerald-700 focus:outline-none"
           >
             <option value="All">Skill: Any</option>
-            {filterOptions.skills
-              .filter((s) => s !== 'All')
-              .map((s) => (
-                <option key={s} value={s}>
-                  Skill: {s}
-                </option>
-              ))}
+            {facets.skills.map((s) => (
+              <option key={s} value={s}>
+                Skill: {s}
+              </option>
+            ))}
           </select>
 
           <select
             aria-label="Filter by Company"
             value={filters.company}
-            onChange={(e) => setFilters({ ...filters, company: e.target.value })}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, company: e.target.value })
+            }
             className="rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-xs text-stone-700 focus:border-emerald-700 focus:outline-none"
           >
             <option value="All">Company: Any</option>
-            {filterOptions.companies
-              .filter((c) => c !== 'All')
-              .map((c) => (
-                <option key={c} value={c}>
-                  Company: {c}
-                </option>
-              ))}
+            {facets.companies.map((c) => (
+              <option key={c} value={c}>
+                Company: {c}
+              </option>
+            ))}
           </select>
 
           <select
             aria-label="Filter by Role"
             value={filters.role}
-            onChange={(e) => setFilters({ ...filters, role: e.target.value })}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, role: e.target.value })
+            }
             className="rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-xs text-stone-700 focus:border-emerald-700 focus:outline-none"
           >
             <option value="All">Role: Any</option>
-            {filterOptions.roles
-              .filter((r) => r !== 'All')
-              .map((r) => (
-                <option key={r} value={r}>
-                  Role: {r}
-                </option>
-              ))}
+            {facets.roles.map((r) => (
+              <option key={r} value={r}>
+                Role: {r}
+              </option>
+            ))}
           </select>
 
           <select
             aria-label="Filter by Domain"
             value={filters.domain}
-            onChange={(e) => setFilters({ ...filters, domain: e.target.value })}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, domain: e.target.value })
+            }
             className="rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-xs text-stone-700 focus:border-emerald-700 focus:outline-none"
           >
             <option value="All">Domain: Any</option>
-            {filterOptions.domains
-              .filter((d) => d !== 'All')
-              .map((d) => (
-                <option key={d} value={d}>
-                  Domain: {d}
-                </option>
-              ))}
+            {facets.domains.map((d) => (
+              <option key={d} value={d}>
+                Domain: {d}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -351,7 +361,10 @@ export function StudentDiscoveryView({
                 type="checkbox"
                 checked={filters.internshipOnly}
                 onChange={(e) =>
-                  setFilters({ ...filters, internshipOnly: e.target.checked })
+                  onFiltersChange({
+                    ...filters,
+                    internshipOnly: e.target.checked,
+                  })
                 }
                 className="h-4 w-4 rounded border-stone-300 accent-emerald-800"
               />
@@ -362,7 +375,10 @@ export function StudentDiscoveryView({
                 type="checkbox"
                 checked={filters.projectHelpOnly}
                 onChange={(e) =>
-                  setFilters({ ...filters, projectHelpOnly: e.target.checked })
+                  onFiltersChange({
+                    ...filters,
+                    projectHelpOnly: e.target.checked,
+                  })
                 }
                 className="h-4 w-4 rounded border-stone-300 accent-emerald-800"
               />
@@ -374,7 +390,7 @@ export function StudentDiscoveryView({
                   type="checkbox"
                   checked={filters.savedOnly}
                   onChange={(e) =>
-                    setFilters({ ...filters, savedOnly: e.target.checked })
+                    onFiltersChange({ ...filters, savedOnly: e.target.checked })
                   }
                   className="h-4 w-4 rounded border-stone-300 accent-emerald-800"
                 />
@@ -385,12 +401,17 @@ export function StudentDiscoveryView({
 
           <div className="flex items-center gap-3 text-xs text-stone-500">
             <span className="tabular-nums">
-              Showing {rankedMatches.length} mentors
+              {totalCount === 0
+                ? '0 mentors'
+                : `Showing ${rankedMatches.length} of ${totalCount} mentors`}
             </span>
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => setFilters(DEFAULT_FILTERS)}
+                onClick={() => {
+                  setSearchDraft('');
+                  onFiltersChange(DEFAULT_DISCOVERY_FILTERS);
+                }}
                 className="inline-flex items-center gap-1 font-medium text-emerald-800 hover:text-emerald-950 cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -406,26 +427,47 @@ export function StudentDiscoveryView({
           {[1, 2, 3, 4].map((n) => (
             <div
               key={n}
-              className="h-64 animate-pulse rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5"
-            />
+              className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-5 space-y-4 animate-pulse"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="h-10 w-10 rounded-full bg-[#EEE9DC]" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-36 rounded bg-[#EEE9DC]" />
+                    <div className="h-3.5 w-48 rounded bg-[#F3EFE4]" />
+                    <div className="h-3 w-32 rounded bg-[#F3EFE4]" />
+                  </div>
+                </div>
+                <div className="h-7 w-12 rounded bg-[#EEE9DC]" />
+              </div>
+              <div className="h-11 w-full rounded-lg bg-[#F3EFE4]" />
+              <div className="h-4 w-3/4 rounded bg-[#F3EFE4]" />
+              <div className="flex items-center justify-between border-t border-[#EEE9DC] pt-3">
+                <div className="h-5 w-28 rounded bg-[#F3EFE4]" />
+                <div className="h-8 w-32 rounded-lg bg-[#EEE9DC]" />
+              </div>
+            </div>
           ))}
         </div>
       ) : rankedMatches.length === 0 ? (
         <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-6 py-12 text-center">
           <h3 className="font-display text-base font-semibold text-[#18221D]">
-            {verifiedAlumni.length === 0
-              ? 'No verified alumni in the directory yet'
-              : 'No mentors match those filters'}
+            {hasActiveFilters
+              ? 'No mentors match those filters'
+              : 'No verified alumni in the directory yet'}
           </h3>
           <p className="mt-1 text-sm text-stone-500 max-w-md mx-auto">
-            {verifiedAlumni.length === 0
-              ? 'As soon as KLS VDIT seniors register or Placement Admin imports replies from the WhatsApp Senior Google Form, verified mentors will appear here.'
-              : 'Clear a filter to see all verified KLS VDIT alumni.'}
+            {hasActiveFilters
+              ? 'Clear a filter to see all verified KLS VDIT alumni.'
+              : 'As soon as KLS VDIT seniors register and get verified, or Placement Admin imports replies from the WhatsApp Senior Google Form, verified mentors will appear here.'}
           </p>
-          {verifiedAlumni.length > 0 && (
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => setFilters(DEFAULT_FILTERS)}
+              onClick={() => {
+                setSearchDraft('');
+                onFiltersChange(DEFAULT_DISCOVERY_FILTERS);
+              }}
               className="mt-4 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 cursor-pointer"
             >
               Show All Mentors
@@ -433,20 +475,50 @@ export function StudentDiscoveryView({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {rankedMatches.map((match) => (
-            <AlumniCard
-              key={match.alumni.id}
-              match={match}
-              role={role}
-              isSaved={savedSet.has(match.alumni.id)}
-              onToggleSave={onToggleSaveAlumni}
-              mentorshipRequest={mentorshipByAlumniId.get(match.alumni.id)}
-              onRequestMentorship={onRequestMentorship}
-              onOpenGuide={onOpenGuide}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {rankedMatches.map((match) => (
+              <AlumniCard
+                key={match.alumni.id}
+                match={match}
+                role={role}
+                isSaved={savedSet.has(match.alumni.id)}
+                onToggleSave={onToggleSaveAlumni}
+                mentorshipRequest={mentorshipByAlumniId.get(match.alumni.id)}
+                onRequestMentorship={onRequestMentorship}
+                onOpenGuide={onOpenGuide}
+              />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-4 py-3 text-xs">
+              <span className="text-stone-600 tabular-nums">
+                Page {page} of {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange(page - 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-3 py-1.5 font-medium text-stone-700 hover:bg-[#F3EFE4] disabled:opacity-50 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => onPageChange(page + 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-3 py-1.5 font-medium text-stone-700 hover:bg-[#F3EFE4] disabled:opacity-50 cursor-pointer"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

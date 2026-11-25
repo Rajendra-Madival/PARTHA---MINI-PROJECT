@@ -1,34 +1,27 @@
-import type { User } from 'firebase/auth';
-import { ExternalLink, GraduationCap, LogOut, ShieldCheck, UserCheck } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
 import {
-  formatFirebaseAuthError,
-  isEmailPasswordDisabledError,
-  registerWithEmail,
-  signInWithEmail,
-  signInWithGoogle,
-  signOutFromFirebase,
-} from '../lib/firebase';
-import {
-  BOOTSTRAP_ADMIN_EMAIL,
-  fetchUserAccount,
-  isUserAdminAccount,
-  registerAlumniAccount,
-  registerStudentAccount,
-  setupAdminAccount,
-  switchUserActiveRole,
-} from '../services/parthaFirestore';
-import type { AuthUser, BranchCode, UserRole } from '../types';
-
-const FIREBASE_AUTH_PROVIDERS_URL =
-  'https://console.firebase.google.com/project/gen-lang-client-0110235521/authentication/providers';
+  AlertCircle,
+  Database,
+  GraduationCap,
+  RefreshCw,
+  ShieldCheck,
+  UserCheck,
+} from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { parthaApi } from '../services/api';
+import type {
+  AdminBootstrapStatus,
+  AuthSession,
+  BranchCode,
+  DatabaseHealthStatus,
+  UserRole,
+} from '../types';
 
 interface AuthScreenProps {
-  firebaseUser: User | null;
-  externalError?: string | null;
-  onClearExternalError?: () => void;
-  onBeforeAuth?: (role: UserRole) => void;
-  onProfileCreated: (user: AuthUser) => Promise<void> | void;
+  dbHealth: DatabaseHealthStatus | null;
+  bootstrapStatus: AdminBootstrapStatus | null;
+  checkingConnection: boolean;
+  onRetryHealth: () => Promise<void>;
+  onAuthenticated: (session: AuthSession) => void;
 }
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
@@ -41,70 +34,49 @@ const DOMAINS = [
   'Cybersecurity & Infra',
 ];
 
-function GoogleMark() {
-  return (
-    <svg
-      version="1.1"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 48 48"
-      className="h-4 w-4 shrink-0"
-      aria-hidden="true"
-    >
-      <path
-        fill="#EA4335"
-        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-      />
-      <path
-        fill="#4285F4"
-        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-      />
-      <path
-        fill="#34A853"
-        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-      />
-    </svg>
-  );
-}
-
 export function AuthScreen({
-  firebaseUser,
-  externalError,
-  onClearExternalError,
-  onBeforeAuth,
-  onProfileCreated,
+  dbHealth,
+  bootstrapStatus,
+  checkingConnection,
+  onRetryHealth,
+  onAuthenticated,
 }: AuthScreenProps) {
   const [role, setRole] = useState<UserRole>('student');
-  const [mode, setMode] = useState<'login' | 'register'>(() =>
-    firebaseUser ? 'register' : 'login',
-  );
-  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [emailPasswordDisabled, setEmailPasswordDisabled] = useState(false);
-  const [canSelectAdmin, setCanSelectAdmin] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
 
-  // Login form fields (clean Email & Password for all 3 roles)
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
 
-  // Shared registration credentials (used when registering with Email & Password)
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+  // First-run Admin Claim state
+  const [claimName, setClaimName] = useState('Placement & Alumni Cell');
+  const [claimEmail, setClaimEmail] = useState('');
+  const [claimBranch, setClaimBranch] = useState<BranchCode>('CSE');
+  const [claimPassword, setClaimPassword] = useState('');
 
-  // Student form fields
-  const [stuName, setStuName] = useState(firebaseUser?.displayName ?? '');
+  // Forgot password state
+  const [resetStep, setResetStep] = useState<'request' | 'verify'>('request');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+  const [previewResetCode, setPreviewResetCode] = useState<string | null>(null);
+
+  // Student registration state
+  const [stuName, setStuName] = useState('');
   const [stuUsn, setStuUsn] = useState('');
   const [stuBranch, setStuBranch] = useState<BranchCode>('CSE');
   const [stuSemester, setStuSemester] = useState(6);
+  const [stuEmail, setStuEmail] = useState('');
   const [stuSkills, setStuSkills] = useState('Python, Machine Learning');
   const [stuDomain, setStuDomain] = useState(DOMAINS[0]);
+  const [stuPassword, setStuPassword] = useState('');
 
-  // Alumni form fields
-  const [aluName, setAluName] = useState(firebaseUser?.displayName ?? '');
+  // Alumni registration state
+  const [aluName, setAluName] = useState('');
   const [aluUsn, setAluUsn] = useState('');
   const [aluGradYear, setAluGradYear] = useState(2022);
   const [aluBranch, setAluBranch] = useState<BranchCode>('CSE');
@@ -112,74 +84,88 @@ export function AuthScreen({
   const [aluRole, setAluRole] = useState('');
   const [aluDomain, setAluDomain] = useState(DOMAINS[2]);
   const [aluSkills, setAluSkills] = useState('TypeScript, React, Node.js');
-  const [aluLocation, setAluLocation] = useState('Bengaluru');
+  const [aluEmail, setAluEmail] = useState('');
   const [aluPhone, setAluPhone] = useState('');
   const [aluLinkedin, setAluLinkedin] = useState('');
-  const [aluBio, setAluBio] = useState('');
+  const [aluPassword, setAluPassword] = useState('');
 
-  // Admin form fields
-  const [adminName, setAdminName] = useState(
-    firebaseUser?.displayName || 'Placement & Alumni Cell',
-  );
+  const dbConnected = Boolean(dbHealth?.databaseConnected);
+  const needsAdminClaim =
+    role === 'admin' && dbConnected && bootstrapStatus && !bootstrapStatus.hasAdmin;
 
-  useEffect(() => {
-    if (!firebaseUser) {
-      setCanSelectAdmin(false);
-      return;
-    }
+  function resetForgotState() {
+    setResetStep('request');
+    setResetCode('');
+    setResetNewPassword('');
+    setResetConfirmPassword('');
+    setResetNotice(null);
+    setPreviewResetCode(null);
+  }
 
-    setMode('register');
-    setStuName((prev) => prev || firebaseUser.displayName || '');
-    setAluName((prev) => prev || firebaseUser.displayName || '');
-    setAdminName((prev) =>
-      prev && prev !== 'Placement & Alumni Cell'
-        ? prev
-        : firebaseUser.displayName || 'Placement & Alumni Cell',
-    );
-
-    const isBootstrap =
-      firebaseUser.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL;
-    if (isBootstrap) {
-      setCanSelectAdmin(true);
-      return;
-    }
-
-    void isUserAdminAccount(firebaseUser.uid, firebaseUser.email).then(
-      (allowed) => {
-        setCanSelectAdmin(allowed);
-      },
-    );
-  }, [firebaseUser]);
-
-  function clearMessages() {
+  function handleSelectRole(nextRole: UserRole) {
+    setRole(nextRole);
+    setMode('login');
     setError(null);
-    setNotice(null);
-    setEmailPasswordDisabled(false);
-    onClearExternalError?.();
+    setLoginSuccess(null);
+    setIdentifier('');
+    setPassword('');
+    resetForgotState();
   }
 
-  async function finalizeExistingAccount(fbUser: User) {
-    const existing = await fetchUserAccount(fbUser.uid, fbUser.email);
-    if (!existing) return false;
-
-    if (existing.isAdminAccount && existing.role !== role) {
-      const switched = await switchUserActiveRole(existing, role);
-      await onProfileCreated(switched);
-    } else {
-      await onProfileCreated(existing);
-    }
-    return true;
+  function handleOpenForgotPassword() {
+    if (role === 'admin') return;
+    setError(null);
+    setLoginSuccess(null);
+    resetForgotState();
+    setResetEmail(identifier.includes('@') ? identifier.trim() : '');
+    setMode('forgot');
   }
 
-  async function createProfileForUser(fbUser: User) {
-    const email = fbUser.email || regEmail.trim();
-    if (!email) {
-      throw new Error('A valid email address is required.');
+  async function handleLoginSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const session = await parthaApi.login({
+        role,
+        identifier,
+        password,
+      });
+      onAuthenticated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign in.');
+    } finally {
+      setLoading(false);
     }
+  }
 
-    if (role === 'student') {
-      const created = await registerStudentAccount(fbUser.uid, email, {
-        name: stuName || fbUser.displayName || 'KLS VDIT Student',
+  async function handleClaimAdmin(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const session = await parthaApi.claimAdmin({
+        name: claimName,
+        email: claimEmail,
+        password: claimPassword,
+        branch: claimBranch,
+      });
+      onAuthenticated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create Admin account.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStudentRegister(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const session = await parthaApi.registerStudent({
+        name: stuName,
+        email: stuEmail,
         usn: stuUsn,
         branch: stuBranch,
         semester: stuSemester,
@@ -188,11 +174,24 @@ export function AuthScreen({
           .map((s) => s.trim())
           .filter(Boolean),
         targetDomain: stuDomain,
+        password: stuPassword,
       });
-      await onProfileCreated(created);
-    } else if (role === 'alumni') {
-      const created = await registerAlumniAccount(fbUser.uid, email, {
-        name: aluName || fbUser.displayName || 'KLS VDIT Alumnus',
+      onAuthenticated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAlumniRegister(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const session = await parthaApi.registerAlumni({
+        name: aluName,
+        email: aluEmail,
         phone: aluPhone,
         linkedinUrl: aluLinkedin,
         regNumber: aluUsn,
@@ -205,140 +204,68 @@ export function AuthScreen({
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
-        location: aluLocation,
-        bio: aluBio,
+        location: 'Bengaluru',
+        bio: '',
+        password: aluPassword,
       });
-      await onProfileCreated(created);
-    } else {
-      if (!fbUser.emailVerified) {
-        throw new Error(
-          'Admin access requires a verified Google account. Click Sign out above and continue with Google.',
-        );
-      }
-      const isAllowedAdmin = await isUserAdminAccount(fbUser.uid, email);
-      if (!isAllowedAdmin) {
-        throw new Error(
-          'Admin access is restricted to authorized Placement Cell accounts. Choose Student or Alumni above.',
-        );
-      }
-      const created = await setupAdminAccount(
-        fbUser.uid,
-        email,
-        adminName || fbUser.displayName || 'Placement & Alumni Cell',
-      );
-      await onProfileCreated(created);
+      onAuthenticated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed.');
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleEmailLoginSubmit(e: FormEvent) {
+  async function handleRequestResetCode(e?: FormEvent) {
+    if (e) e.preventDefault();
+    if (role === 'admin') return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await parthaApi.requestPasswordReset({
+        role,
+        email: resetEmail,
+      });
+      setResetNotice(res.message);
+      setPreviewResetCode(res.previewCode ?? null);
+      setResetStep('verify');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset code.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleConfirmReset(e: FormEvent) {
     e.preventDefault();
-    clearMessages();
-    setBusy(true);
-    onBeforeAuth?.(role);
+    if (role === 'admin') return;
+    setError(null);
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const fbUser = await signInWithEmail(loginEmail, loginPassword);
-      const found = await finalizeExistingAccount(fbUser);
-      if (!found) {
-        setMode('register');
-        setNotice(
-          'Signed in! Complete your profile details below to enter PARTHA.',
-        );
-      }
+      const res = await parthaApi.resetPassword({
+        role,
+        email: resetEmail,
+        code: resetCode,
+        newPassword: resetNewPassword,
+      });
+      const updatedEmail = resetEmail.trim();
+      resetForgotState();
+      setMode('login');
+      setIdentifier(updatedEmail);
+      setPassword('');
+      setLoginSuccess(res.message);
     } catch (err) {
-      setEmailPasswordDisabled(isEmailPasswordDisabledError(err));
-      setError(formatFirebaseAuthError(err));
+      setError(err instanceof Error ? err.message : 'Could not reset password.');
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
-
-  async function handleGoogleLogin() {
-    clearMessages();
-    setBusy(true);
-    onBeforeAuth?.(role);
-    try {
-      const { user: fbUser } = await signInWithGoogle();
-      const found = await finalizeExistingAccount(fbUser);
-      if (!found) {
-        setMode('register');
-        setNotice(
-          role === 'admin'
-            ? 'Google account connected! Confirm your Admin name below to open the portal.'
-            : 'Google account connected! Fill in your details below to complete registration.',
-        );
-      }
-    } catch (err) {
-      setError(formatFirebaseAuthError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRegisterWithEmailSubmit(e: FormEvent) {
-    e.preventDefault();
-    clearMessages();
-    setBusy(true);
-    onBeforeAuth?.(role);
-    try {
-      let activeFbUser = firebaseUser;
-      if (!activeFbUser) {
-        activeFbUser = await registerWithEmail(regEmail, regPassword);
-      }
-
-      const found = await finalizeExistingAccount(activeFbUser);
-      if (!found) {
-        await createProfileForUser(activeFbUser);
-      }
-    } catch (err) {
-      setEmailPasswordDisabled(isEmailPasswordDisabledError(err));
-      setError(formatFirebaseAuthError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRegisterWithGoogle() {
-    clearMessages();
-    setBusy(true);
-    onBeforeAuth?.(role);
-    try {
-      const { user: fbUser } = await signInWithGoogle();
-      const found = await finalizeExistingAccount(fbUser);
-      if (found) return;
-
-      if (role === 'student' && (!stuName.trim() || !stuUsn.trim())) {
-        setMode('register');
-        setNotice(
-          'Google account connected! Enter your Name and USN above, then click Save Student Details.',
-        );
-        return;
-      }
-      if (
-        role === 'alumni' &&
-        (!aluName.trim() || !aluUsn.trim() || !aluCompany.trim() || !aluRole.trim())
-      ) {
-        setMode('register');
-        setNotice(
-          'Google account connected! Complete your Name, USN, Company, and Role above to submit.',
-        );
-        return;
-      }
-
-      await createProfileForUser(fbUser);
-    } catch (err) {
-      setError(formatFirebaseAuthError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleSwitchGoogleAccount() {
-    clearMessages();
-    await signOutFromFirebase();
-    setMode('login');
-  }
-
-  const activeError = error ?? externalError ?? null;
 
   return (
     <div className="min-h-screen bg-[#FAF7F0] flex flex-col">
@@ -365,42 +292,74 @@ export function AuthScreen({
                 Connect with verified seniors for career &amp; project guidance
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-stone-600">
-                Choose Student, Alumni, or Admin to sign in or register. You can enter your details during registration and update them anytime inside My Details.
+                PARTHA matches KLS VDIT students with verified alumni working across engineering teams, while keeping alumni contact details private until a request is accepted.
               </p>
             </div>
 
             <div className="space-y-4 border-t border-[#E5DFD0] pt-5">
               <div>
                 <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  1. Same simple Login &amp; Register for all three roles
+                  1. Sign in with your role
                 </h2>
                 <p className="mt-0.5 text-xs text-stone-600">
-                  Separate portals for Students, Alumni Mentors, and Placement Cell Admins.
+                  Separate login portals for Students, Alumni Mentors, and Placement Cell Admins.
                 </p>
               </div>
               <div>
                 <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  2. Enter your details simply
+                  2. Find mentors who match your skills
                 </h2>
                 <p className="mt-0.5 text-xs text-stone-600">
-                  Add your USN, branch, skills, or company details during registration or edit anytime in My Details.
+                  See why each alumnus fits your goals, read their interview guides, and send a mentorship request.
                 </p>
               </div>
               <div>
                 <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                  3. Privacy-gated contact details
+                  3. Unlock contact when accepted
                 </h2>
                 <p className="mt-0.5 text-xs text-stone-600">
-                  Alumni email, WhatsApp, and LinkedIn stay protected until the alumnus accepts a mentorship request.
+                  Email, phone, and LinkedIn stay protected in PostgreSQL until the alumnus clicks Accept.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* 3-Role Login & Register Card */}
-          <div className="lg:col-span-7">
-            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 sm:p-7 space-y-5">
-              {/* Role Tabs */}
+          {/* 3-Role Authentication Card */}
+          <div className="lg:col-span-7 space-y-4">
+            {dbHealth && !dbConnected && (
+              <div
+                role="status"
+                className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 text-xs text-amber-950 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <Database className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+                    <div>
+                      <p className="font-semibold text-amber-950">
+                        Connect your Supabase PostgreSQL database
+                      </p>
+                      <p className="mt-0.5 text-amber-900 leading-relaxed">
+                        {dbHealth.databaseError ||
+                          'Add DATABASE_URL (your Supabase connection pooler URI) in AI Studio Settings → Secrets, then click Retry Connection.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={checkingConnection}
+                    onClick={() => void onRetryHealth()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-[#FFFEFA] px-3 py-1.5 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60 whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <RefreshCw
+                      className={`h-3 w-3 ${checkingConnection ? 'animate-spin' : ''}`}
+                    />
+                    Retry Connection
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 sm:p-7">
               <div
                 role="tablist"
                 aria-label="Choose Account Type"
@@ -410,10 +369,7 @@ export function AuthScreen({
                   type="button"
                   role="tab"
                   aria-selected={role === 'student'}
-                  onClick={() => {
-                    clearMessages();
-                    setRole('student');
-                  }}
+                  onClick={() => handleSelectRole('student')}
                   className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                     role === 'student'
                       ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
@@ -427,10 +383,7 @@ export function AuthScreen({
                   type="button"
                   role="tab"
                   aria-selected={role === 'alumni'}
-                  onClick={() => {
-                    clearMessages();
-                    setRole('alumni');
-                  }}
+                  onClick={() => handleSelectRole('alumni')}
                   className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                     role === 'alumni'
                       ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
@@ -444,10 +397,7 @@ export function AuthScreen({
                   type="button"
                   role="tab"
                   aria-selected={role === 'admin'}
-                  onClick={() => {
-                    clearMessages();
-                    setRole('admin');
-                  }}
+                  onClick={() => handleSelectRole('admin')}
                   className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                     role === 'admin'
                       ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
@@ -459,616 +409,741 @@ export function AuthScreen({
                 </button>
               </div>
 
-              {notice && (
-                <div
-                  role="status"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs font-medium text-emerald-950"
-                >
-                  {notice}
-                </div>
-              )}
-
-              {firebaseUser && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs">
-                  <span className="text-emerald-950">
-                    Signed in as{' '}
-                    <strong className="font-semibold">{firebaseUser.email}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleSwitchGoogleAccount}
-                    className="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer"
-                  >
-                    <LogOut className="h-3 w-3" aria-hidden="true" />
-                    Sign out
-                  </button>
-                </div>
-              )}
-
-              {/* Title + Login / Register Toggle */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEE9DC] pb-4">
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="font-display text-lg font-bold text-[#18221D]">
                     {role === 'student'
                       ? mode === 'login'
-                        ? 'Student Login'
-                        : 'Student Registration'
+                        ? 'Student Sign In'
+                        : mode === 'register'
+                          ? 'Create Student Account'
+                          : 'Reset Student Password'
                       : role === 'alumni'
                         ? mode === 'login'
-                          ? 'Alumni Mentor Login'
-                          : 'Alumni Registration'
-                        : mode === 'login'
-                          ? 'Admin Login'
-                          : 'Admin Registration'}
+                          ? 'Alumni Mentor Sign In'
+                          : mode === 'register'
+                            ? 'Register as KLS VDIT Alumni'
+                            : 'Reset Alumni Password'
+                        : needsAdminClaim
+                          ? 'Initial Placement Cell Admin Setup'
+                          : 'Admin Verification Portal'}
                   </h2>
                   <p className="text-xs text-stone-500">
-                    {role === 'student'
-                      ? mode === 'login'
-                        ? 'Sign in to discover mentors and opportunities.'
-                        : 'Create your KLS VDIT student profile below.'
-                      : role === 'alumni'
-                        ? mode === 'login'
-                          ? 'Sign in to manage student requests and post updates.'
-                          : 'Enter your graduation and company details below.'
-                        : 'Placement & Alumni Cell access.'}
+                    {mode === 'forgot'
+                      ? 'Verify your registered email with a 6-digit code to set a new password.'
+                      : needsAdminClaim
+                        ? 'Create the first Placement & Alumni Cell admin account for this database.'
+                        : role === 'student'
+                          ? 'Use your KLS VDIT email or USN to browse mentors and opportunities.'
+                          : role === 'alumni'
+                            ? 'Review mentorship requests and share internships or prep guides.'
+                            : 'Placement & Alumni Cell access to verify alumni and manage Google Form intake.'}
                   </p>
                 </div>
 
-                {!firebaseUser && (
-                  <div className="flex items-center gap-1 rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] p-1 text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        clearMessages();
-                        setMode('login');
-                      }}
-                      className={`rounded-md px-3 py-1 cursor-pointer transition-colors ${
-                        mode === 'login'
-                          ? 'bg-emerald-800 text-white'
-                          : 'text-stone-600 hover:text-[#18221D]'
-                      }`}
-                    >
-                      Login
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        clearMessages();
-                        setMode('register');
-                      }}
-                      className={`rounded-md px-3 py-1 cursor-pointer transition-colors ${
-                        mode === 'register'
-                          ? 'bg-emerald-800 text-white'
-                          : 'text-stone-600 hover:text-[#18221D]'
-                      }`}
-                    >
-                      Register
-                    </button>
-                  </div>
+                {role !== 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setLoginSuccess(null);
+                      resetForgotState();
+                      setMode(mode === 'login' ? 'register' : 'login');
+                    }}
+                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer whitespace-nowrap"
+                  >
+                    {mode === 'login'
+                      ? role === 'student'
+                        ? 'New student? Register'
+                        : 'New alumnus? Register'
+                      : mode === 'forgot'
+                        ? 'Back to Sign In'
+                        : 'Already registered? Sign In'}
+                  </button>
                 )}
               </div>
 
-              {/* Login Form — Same Clean Input Pattern as Register */}
-              {mode === 'login' && !firebaseUser ? (
-                <div className="space-y-4">
-                  <form onSubmit={handleEmailLoginSubmit} className="space-y-3.5">
+              {needsAdminClaim ? (
+                <form onSubmit={handleClaimAdmin} className="mt-5 space-y-4">
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs text-emerald-950">
+                    No Placement Cell Admin exists in Supabase PostgreSQL yet. Complete this one-time setup to claim Admin access.
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                     <div>
-                      <label
-                        htmlFor="login-email"
-                        className="block text-xs font-semibold text-stone-700 mb-1"
-                      >
-                        {role === 'student'
-                          ? 'Student Email'
-                          : role === 'alumni'
-                            ? 'Alumni Email'
-                            : 'Admin Email'}
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Admin / Placement Cell Name
                       </label>
                       <input
-                        id="login-email"
-                        type="email"
+                        type="text"
                         required
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                        placeholder={
-                          role === 'student'
-                            ? 'student@klsvdit.edu.in'
-                            : role === 'alumni'
-                              ? 'senior@company.com'
-                              : 'admin@klsvdit.edu.in'
-                        }
-                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                        value={claimName}
+                        onChange={(e) => setClaimName(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label
-                        htmlFor="login-password"
-                        className="block text-xs font-semibold text-stone-700 mb-1"
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Primary Department
+                      </label>
+                      <select
+                        value={claimBranch}
+                        onChange={(e) => setClaimBranch(e.target.value as BranchCode)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
                       >
-                        Password
+                        {BRANCHES.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Official Admin Email
                       </label>
                       <input
-                        id="login-password"
+                        type="email"
+                        required
+                        value={claimEmail}
+                        onChange={(e) => setClaimEmail(e.target.value)}
+                        placeholder="placement@klsvdit.edu.in"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Admin Passcode (6+ characters)
+                      </label>
+                      <input
                         type="password"
                         required
                         minLength={6}
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        placeholder="Enter your password"
+                        value={claimPassword}
+                        onChange={(e) => setClaimPassword(e.target.value)}
+                        placeholder="Choose a strong passcode"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p
+                      className="flex items-center gap-1.5 text-xs font-medium text-red-600"
+                      role="alert"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !dbConnected}
+                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading ? 'Setting up Admin...' : 'Claim Placement Cell Admin'}
+                  </button>
+                </form>
+              ) : mode === 'login' || role === 'admin' ? (
+                <form onSubmit={handleLoginSubmit} className="mt-5 space-y-4">
+                  {loginSuccess && (
+                    <div
+                      role="status"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-900"
+                    >
+                      {loginSuccess}
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      htmlFor="login-identifier"
+                      className="block text-xs font-semibold text-stone-700 mb-1"
+                    >
+                      {role === 'student'
+                        ? 'College Email or USN'
+                        : role === 'alumni'
+                          ? 'Alumni Email or USN'
+                          : 'Admin Email'}
+                    </label>
+                    <input
+                      id="login-identifier"
+                      type="text"
+                      required
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder={
+                        role === 'student'
+                          ? 'yourname@klsvdit.edu.in or 2VD23CS001'
+                          : role === 'alumni'
+                            ? 'alumni@company.com or 2VD19CS014'
+                            : 'placement@klsvdit.edu.in'
+                      }
+                      className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="login-password"
+                        className="block text-xs font-semibold text-stone-700"
+                      >
+                        {role === 'admin' ? 'Admin Passcode' : 'Password'}
+                      </label>
+                      {role !== 'admin' && (
+                        <button
+                          type="button"
+                          onClick={handleOpenForgotPassword}
+                          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      id="login-password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
+                    />
+                  </div>
+
+                  {error && (
+                    <p
+                      className="flex items-center gap-1.5 text-xs font-medium text-red-600"
+                      role="alert"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !dbConnected}
+                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading
+                      ? 'Signing in...'
+                      : role === 'student'
+                        ? 'Sign In as Student'
+                        : role === 'alumni'
+                          ? 'Sign In as Alumni'
+                          : 'Sign In as Admin'}
+                  </button>
+                </form>
+              ) : mode === 'forgot' ? (
+                resetStep === 'request' ? (
+                  <form onSubmit={handleRequestResetCode} className="mt-5 space-y-4">
+                    <div>
+                      <label
+                        htmlFor="forgot-email"
+                        className="block text-xs font-semibold text-stone-700 mb-1"
+                      >
+                        Registered {role === 'student' ? 'College' : 'Alumni'} Email
+                      </label>
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder={
+                          role === 'student'
+                            ? 'student@klsvdit.edu.in'
+                            : 'alumni@company.com'
+                        }
                         className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2.5 text-sm focus:border-emerald-700 focus:outline-none"
                       />
                     </div>
 
-                    {activeError && (
-                      <div
-                        role="alert"
-                        className={`rounded-lg border px-3.5 py-2.5 text-xs space-y-2 ${
-                          emailPasswordDisabled
-                            ? 'border-amber-200 bg-amber-50/80 text-amber-950'
-                            : 'border-red-200 bg-red-50 text-red-700'
-                        }`}
-                      >
-                        <p className="font-medium leading-relaxed">{activeError}</p>
-                        {emailPasswordDisabled && (
-                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={handleGoogleLogin}
-                              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-800 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-900 cursor-pointer"
-                            >
-                              Sign in with Google Now
-                            </button>
-                            <a
-                              href={FIREBASE_AUTH_PROVIDERS_URL}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:text-emerald-950 underline"
-                            >
-                              Enable Email/Password in Firebase Console
-                              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
+                    {error && (
+                      <p className="text-xs font-medium text-red-600" role="alert">
+                        {error}
+                      </p>
                     )}
 
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
-                    >
-                      {busy
-                        ? 'Signing in...'
-                        : role === 'student'
-                          ? 'Sign In as Student'
-                          : role === 'alumni'
-                            ? 'Sign In as Alumni'
-                            : 'Sign In as Admin'}
-                    </button>
-                  </form>
-
-                  <div className="relative flex items-center py-1">
-                    <div className="flex-grow border-t border-[#E5DFD0]" />
-                    <span className="mx-3 text-[11px] font-medium text-stone-400">
-                      OR
-                    </span>
-                    <div className="flex-grow border-t border-[#E5DFD0]" />
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={handleGoogleLogin}
-                    className="inline-flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#747775] bg-white px-4 py-2.5 text-xs font-medium text-[#1F1F1F] hover:bg-[#F7F8F9] disabled:opacity-60 cursor-pointer"
-                  >
-                    <GoogleMark />
-                    <span>
-                      Continue with Google as{' '}
-                      {role === 'student'
-                        ? 'Student'
-                        : role === 'alumni'
-                          ? 'Alumni'
-                          : 'Admin'}
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                /* Register Form */
-                <div className="space-y-4">
-                  <form
-                    onSubmit={handleRegisterWithEmailSubmit}
-                    className="space-y-3.5"
-                  >
-                    {role === 'student' ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Full Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={stuName}
-                            onChange={(e) => setStuName(e.target.value)}
-                            placeholder="e.g., Priya Patil"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            KLS VDIT USN
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={stuUsn}
-                            onChange={(e) => setStuUsn(e.target.value)}
-                            placeholder="e.g., 2VD23CS045"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Branch
-                          </label>
-                          <select
-                            value={stuBranch}
-                            onChange={(e) => setStuBranch(e.target.value as BranchCode)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          >
-                            {BRANCHES.map((b) => (
-                              <option key={b} value={b}>
-                                {b}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Semester
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={8}
-                            value={stuSemester}
-                            onChange={(e) => setStuSemester(Number(e.target.value))}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Interest Domain
-                          </label>
-                          <select
-                            value={stuDomain}
-                            onChange={(e) => setStuDomain(e.target.value)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          >
-                            {DOMAINS.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Skills You Want to Learn
-                          </label>
-                          <input
-                            type="text"
-                            value={stuSkills}
-                            onChange={(e) => setStuSkills(e.target.value)}
-                            placeholder="Python, React, ML"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    ) : role === 'alumni' ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Full Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={aluName}
-                            onChange={(e) => setAluName(e.target.value)}
-                            placeholder="e.g., Siddharth Rao"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            KLS VDIT USN
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={aluUsn}
-                            onChange={(e) => setAluUsn(e.target.value)}
-                            placeholder="e.g., 2VD18CS022"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Company
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={aluCompany}
-                            onChange={(e) => setAluCompany(e.target.value)}
-                            placeholder="e.g., Flipkart"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Current Role
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={aluRole}
-                            onChange={(e) => setAluRole(e.target.value)}
-                            placeholder="e.g., SDE II"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Graduation Year
-                          </label>
-                          <input
-                            type="number"
-                            min={1995}
-                            max={2035}
-                            value={aluGradYear}
-                            onChange={(e) => setAluGradYear(Number(e.target.value))}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Branch
-                          </label>
-                          <select
-                            value={aluBranch}
-                            onChange={(e) => setAluBranch(e.target.value as BranchCode)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          >
-                            {BRANCHES.map((b) => (
-                              <option key={b} value={b}>
-                                {b}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Domain
-                          </label>
-                          <select
-                            value={aluDomain}
-                            onChange={(e) => setAluDomain(e.target.value)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          >
-                            {DOMAINS.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Skills (comma-separated)
-                          </label>
-                          <input
-                            type="text"
-                            value={aluSkills}
-                            onChange={(e) => setAluSkills(e.target.value)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            City / Location
-                          </label>
-                          <input
-                            type="text"
-                            value={aluLocation}
-                            onChange={(e) => setAluLocation(e.target.value)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            WhatsApp / Phone (Gated)
-                          </label>
-                          <input
-                            type="text"
-                            value={aluPhone}
-                            onChange={(e) => setAluPhone(e.target.value)}
-                            placeholder="+91 98..."
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            LinkedIn URL (Gated)
-                          </label>
-                          <input
-                            type="url"
-                            value={aluLinkedin}
-                            onChange={(e) => setAluLinkedin(e.target.value)}
-                            placeholder="https://linkedin.com/in/..."
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Short Bio
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={aluBio}
-                            onChange={(e) => setAluBio(e.target.value)}
-                            placeholder="Briefly mention areas you mentor students on..."
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Administrator / Placement Cell Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={adminName}
-                            onChange={(e) => setAdminName(e.target.value)}
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <p className="text-xs text-stone-600 leading-relaxed">
-                          {firebaseUser && !canSelectAdmin
-                            ? 'Your signed-in Google account is not on the Placement Admin list. Select Student or Alumni above.'
-                            : 'Admin registration is reserved for verified Placement Cell Google accounts.'}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Email & Password inputs for direct registration when not signed in via Google yet */}
-                    {!firebaseUser && role !== 'admin' && (
-                      <div className="grid grid-cols-1 gap-3 border-t border-[#EEE9DC] pt-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={regEmail}
-                            onChange={(e) => setRegEmail(e.target.value)}
-                            placeholder={
-                              role === 'student'
-                                ? 'student@klsvdit.edu.in'
-                                : 'senior@company.com'
-                            }
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">
-                            Password
-                          </label>
-                          <input
-                            type="password"
-                            required
-                            minLength={6}
-                            value={regPassword}
-                            onChange={(e) => setRegPassword(e.target.value)}
-                            placeholder="Min 6 characters"
-                            className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {activeError && (
-                      <div
-                        role="alert"
-                        className={`rounded-lg border px-3.5 py-2.5 text-xs space-y-2 ${
-                          emailPasswordDisabled
-                            ? 'border-amber-200 bg-amber-50/80 text-amber-950'
-                            : 'border-red-200 bg-red-50 text-red-700'
-                        }`}
-                      >
-                        <p className="font-medium leading-relaxed">{activeError}</p>
-                        {emailPasswordDisabled && !firebaseUser && (
-                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={handleRegisterWithGoogle}
-                              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-800 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-900 cursor-pointer"
-                            >
-                              Continue with Google Instead
-                            </button>
-                            <a
-                              href={FIREBASE_AUTH_PROVIDERS_URL}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:text-emerald-950 underline"
-                            >
-                              Enable Email/Password in Firebase Console
-                              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {(firebaseUser || role !== 'admin') && (
+                    <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
                       <button
                         type="submit"
-                        disabled={
-                          busy ||
-                          (role === 'admin' &&
-                            Boolean(firebaseUser) &&
-                            !canSelectAdmin)
-                        }
-                        className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                        disabled={loading || !dbConnected}
+                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
                       >
-                        {busy
-                          ? 'Saving...'
-                          : firebaseUser
-                            ? role === 'student'
-                              ? 'Save Student Details & Enter'
-                              : role === 'alumni'
-                                ? 'Submit Alumni Profile & Enter'
-                                : 'Open Admin Portal'
-                            : role === 'student'
-                              ? 'Create Student Account'
-                              : 'Submit Alumni Profile'}
+                        {loading ? 'Sending verification code...' : 'Send Reset Code'}
                       </button>
-                    )}
-                  </form>
-
-                  {!firebaseUser && (
-                    <>
-                      <div className="relative flex items-center py-0.5">
-                        <div className="flex-grow border-t border-[#E5DFD0]" />
-                        <span className="mx-3 text-[11px] font-medium text-stone-400">
-                          OR
-                        </span>
-                        <div className="flex-grow border-t border-[#E5DFD0]" />
-                      </div>
-
                       <button
                         type="button"
-                        disabled={busy}
-                        onClick={handleRegisterWithGoogle}
-                        className="inline-flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#747775] bg-white px-4 py-2.5 text-xs font-medium text-[#1F1F1F] hover:bg-[#F7F8F9] disabled:opacity-60 cursor-pointer"
+                        onClick={() => {
+                          setError(null);
+                          resetForgotState();
+                          setMode('login');
+                        }}
+                        className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] cursor-pointer whitespace-nowrap"
                       >
-                        <GoogleMark />
-                        <span>
-                          {role === 'admin'
-                            ? 'Continue with Google as Admin'
-                            : 'Register with Google (saves details above)'}
-                        </span>
+                        Cancel
                       </button>
-                    </>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleConfirmReset} className="mt-5 space-y-4">
+                    {resetNotice && (
+                      <div
+                        role="status"
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-900 space-y-1.5"
+                      >
+                        <p className="font-medium">{resetNotice}</p>
+                        {previewResetCode && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-200/80 pt-1.5">
+                            <span>
+                              Preview code:{' '}
+                              <span className="font-mono font-semibold text-emerald-950 tracking-wider">
+                                {previewResetCode}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setResetCode(previewResetCode)}
+                              className="rounded border border-emerald-300 bg-[#FFFEFA] px-2 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                            >
+                              Fill code
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label
+                            htmlFor="reset-email-confirm"
+                            className="block text-xs font-semibold text-stone-700"
+                          >
+                            Registered Email
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setError(null);
+                              setResetStep('request');
+                              setResetNotice(null);
+                              setPreviewResetCode(null);
+                            }}
+                            className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                          >
+                            Change
+                          </button>
+                        </div>
+                        <input
+                          id="reset-email-confirm"
+                          type="email"
+                          required
+                          readOnly
+                          value={resetEmail}
+                          className="w-full rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-3 py-2 text-sm text-stone-600 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="reset-code"
+                          className="block text-xs font-semibold text-stone-700 mb-1"
+                        >
+                          6-Digit Verification Code
+                        </label>
+                        <input
+                          id="reset-code"
+                          type="text"
+                          inputMode="numeric"
+                          required
+                          maxLength={6}
+                          value={resetCode}
+                          onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="123456"
+                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono tracking-widest focus:border-emerald-700 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="reset-new-password"
+                          className="block text-xs font-semibold text-stone-700 mb-1"
+                        >
+                          New Password
+                        </label>
+                        <input
+                          id="reset-new-password"
+                          type="password"
+                          required
+                          minLength={4}
+                          value={resetNewPassword}
+                          onChange={(e) => setResetNewPassword(e.target.value)}
+                          placeholder="At least 4 characters"
+                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="reset-confirm-password"
+                          className="block text-xs font-semibold text-stone-700 mb-1"
+                        >
+                          Confirm New Password
+                        </label>
+                        <input
+                          id="reset-confirm-password"
+                          type="password"
+                          required
+                          minLength={4}
+                          value={resetConfirmPassword}
+                          onChange={(e) => setResetConfirmPassword(e.target.value)}
+                          placeholder="Re-enter password"
+                          className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <p className="text-xs font-medium text-red-600" role="alert">
+                        {error}
+                      </p>
+                    )}
+
+                    <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
+                      <button
+                        type="submit"
+                        disabled={loading || !dbConnected}
+                        className="flex-1 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                      >
+                        {loading ? 'Updating password...' : 'Update Password'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={loading || !dbConnected}
+                        onClick={() => handleRequestResetCode()}
+                        className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] disabled:opacity-60 cursor-pointer whitespace-nowrap"
+                      >
+                        Resend code
+                      </button>
+                    </div>
+                  </form>
+                )
+              ) : role === 'student' ? (
+                <form onSubmit={handleStudentRegister} className="mt-5 space-y-3.5">
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={stuName}
+                        onChange={(e) => setStuName(e.target.value)}
+                        placeholder="e.g., Priya Patil"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        KLS VDIT USN
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={stuUsn}
+                        onChange={(e) => setStuUsn(e.target.value)}
+                        placeholder="e.g., 2VD23CS045"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Branch
+                      </label>
+                      <select
+                        value={stuBranch}
+                        onChange={(e) => setStuBranch(e.target.value as BranchCode)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      >
+                        {BRANCHES.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Semester
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={8}
+                        value={stuSemester}
+                        onChange={(e) => setStuSemester(Number(e.target.value))}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        College Email
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={stuEmail}
+                        onChange={(e) => setStuEmail(e.target.value)}
+                        placeholder="student@klsvdit.edu.in"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={4}
+                        value={stuPassword}
+                        onChange={(e) => setStuPassword(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Interest Domain
+                      </label>
+                      <select
+                        value={stuDomain}
+                        onChange={(e) => setStuDomain(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      >
+                        {DOMAINS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Skills You Want to Learn
+                      </label>
+                      <input
+                        type="text"
+                        value={stuSkills}
+                        onChange={(e) => setStuSkills(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p className="text-xs font-medium text-red-600" role="alert">
+                      {error}
+                    </p>
                   )}
-                </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || !dbConnected}
+                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading ? 'Creating account...' : 'Create Student Account'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleAlumniRegister} className="mt-5 space-y-3.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluName}
+                        onChange={(e) => setAluName(e.target.value)}
+                        placeholder="e.g., Siddharth Rao"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        KLS VDIT USN
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluUsn}
+                        onChange={(e) => setAluUsn(e.target.value)}
+                        placeholder="e.g., 2VD18CS022"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm font-mono focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluCompany}
+                        onChange={(e) => setAluCompany(e.target.value)}
+                        placeholder="e.g., Flipkart"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Current Role
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={aluRole}
+                        onChange={(e) => setAluRole(e.target.value)}
+                        placeholder="e.g., SDE II"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Graduation Year
+                      </label>
+                      <input
+                        type="number"
+                        min={1995}
+                        max={2035}
+                        value={aluGradYear}
+                        onChange={(e) => setAluGradYear(Number(e.target.value))}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm tabular-nums focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Branch
+                      </label>
+                      <select
+                        value={aluBranch}
+                        onChange={(e) => setAluBranch(e.target.value as BranchCode)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      >
+                        {BRANCHES.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Domain
+                      </label>
+                      <select
+                        value={aluDomain}
+                        onChange={(e) => setAluDomain(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      >
+                        {DOMAINS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Skills (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={aluSkills}
+                        onChange={(e) => setAluSkills(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Email (Gated until you accept)
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={aluEmail}
+                        onChange={(e) => setAluEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Phone (Gated)
+                      </label>
+                      <input
+                        type="text"
+                        value={aluPhone}
+                        onChange={(e) => setAluPhone(e.target.value)}
+                        placeholder="+91 98..."
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        LinkedIn URL (Gated)
+                      </label>
+                      <input
+                        type="url"
+                        value={aluLinkedin}
+                        onChange={(e) => setAluLinkedin(e.target.value)}
+                        placeholder="https://linkedin.com/in/..."
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={4}
+                        value={aluPassword}
+                        onChange={(e) => setAluPassword(e.target.value)}
+                        className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-stone-500">
+                    New alumni accounts enter the Admin Verification Queue so Placement Cell can verify KLS VDIT details before listing.
+                  </p>
+
+                  {error && (
+                    <p className="text-xs font-medium text-red-600" role="alert">
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !dbConnected}
+                    className="w-full rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading ? 'Submitting registration...' : 'Register for Verification'}
+                  </button>
+                </form>
               )}
             </div>
           </div>

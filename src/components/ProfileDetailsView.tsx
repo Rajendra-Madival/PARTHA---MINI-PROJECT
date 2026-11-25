@@ -75,6 +75,7 @@ export function ProfileDetailsView({
     studentProfile.targetSkills.join(', '),
   );
   const [stuCompany, setStuCompany] = useState(studentProfile.targetCompany);
+  const [stuResumeUrl, setStuResumeUrl] = useState(studentProfile.resumeUrl ?? '');
   const [stuInternship, setStuInternship] = useState(
     studentProfile.lookingForInternship,
   );
@@ -125,7 +126,7 @@ export function ProfileDetailsView({
     user.subtitle || 'Placement & Alumni Cell · KLS VDIT',
   );
   const [admBranch, setAdmBranch] = useState<BranchCode>(
-    studentProfile.branch ?? 'CSE',
+    user.branch ?? studentProfile.branch ?? 'CSE',
   );
 
   useEffect(() => {
@@ -136,6 +137,7 @@ export function ProfileDetailsView({
     setStuDomain(studentProfile.targetDomain || DOMAINS[0]);
     setStuSkills(studentProfile.targetSkills.join(', '));
     setStuCompany(studentProfile.targetCompany);
+    setStuResumeUrl(studentProfile.resumeUrl ?? '');
     setStuInternship(studentProfile.lookingForInternship);
     setStuProjectHelp(studentProfile.lookingForProjectHelp);
   }, [studentProfile, user.name]);
@@ -163,8 +165,8 @@ export function ProfileDetailsView({
   useEffect(() => {
     setAdmName(user.name);
     setAdmSubtitle(user.subtitle || 'Placement & Alumni Cell · KLS VDIT');
-    setAdmBranch(studentProfile.branch ?? 'CSE');
-  }, [user.name, user.subtitle, studentProfile.branch]);
+    setAdmBranch(user.branch ?? studentProfile.branch ?? 'CSE');
+  }, [user.name, user.subtitle, user.branch, studentProfile.branch]);
 
   function markSaved() {
     setSavedBanner(true);
@@ -188,6 +190,7 @@ export function ProfileDetailsView({
         targetDomain: stuDomain,
         targetSkills: parsedSkills.length > 0 ? parsedSkills : ['Python'],
         targetCompany: stuCompany.trim(),
+        resumeUrl: stuResumeUrl.trim(),
         lookingForInternship: stuInternship,
         lookingForProjectHelp: stuProjectHelp,
       });
@@ -280,7 +283,7 @@ export function ProfileDetailsView({
             </h1>
             <p className="mt-1 text-sm text-stone-600">
               {user.role === 'student'
-                ? 'Keep your USN, semester, and target skills updated so PARTHA ranks the best alumni mentors for you.'
+                ? 'Keep your USN, semester, resume link, and target skills updated so PARTHA ranks the best alumni mentors for you.'
                 : user.role === 'alumni'
                   ? 'Update your company, skills, and mentoring bio. Your email, phone, and LinkedIn stay private until you accept a student request.'
                   : 'Update your Placement & Alumni Cell display name and department information.'}
@@ -323,7 +326,7 @@ export function ProfileDetailsView({
           className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-medium text-emerald-900"
         >
           <Check className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-          Details saved to Firebase.
+          Details saved to Supabase PostgreSQL.
         </div>
       )}
 
@@ -418,6 +421,19 @@ export function ProfileDetailsView({
                 value={stuCompany}
                 onChange={(e) => setStuCompany(e.target.value)}
                 placeholder="e.g., Google, Razorpay, Bosch"
+                className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Resume / Portfolio URL (optional)
+              </label>
+              <input
+                type="url"
+                value={stuResumeUrl}
+                onChange={(e) => setStuResumeUrl(e.target.value)}
+                placeholder="https://drive.google.com/... or https://github.com/..."
                 className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
               />
             </div>
@@ -648,7 +664,7 @@ export function ProfileDetailsView({
               </h2>
             </div>
             <p className="text-xs text-stone-500">
-              Protected by Firestore security rules — only students whose mentorship request you accept can see these fields.
+              Protected by Supabase PostgreSQL privacy gating — only students whose mentorship request you accept can see these fields.
             </p>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
