@@ -1,12 +1,18 @@
 import {
   boolean,
+  customType,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+});
 
 export const users = pgTable(
   'users',
@@ -18,6 +24,7 @@ export const users = pgTable(
     subtitle: text('subtitle').notNull().default(''),
     branch: text('branch').notNull().default('CSE'),
     passwordHash: text('password_hash').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -33,8 +40,11 @@ export const studentProfiles = pgTable('student_profiles', {
   semester: integer('semester').notNull().default(6),
   targetSkills: text('target_skills').array().notNull().default([]),
   targetDomain: text('target_domain').notNull().default('Machine Learning & AI'),
+  mentorshipGoals: text('mentorship_goals').array().notNull().default([]),
+  customMentorshipGoal: text('custom_mentorship_goal').notNull().default(''),
   targetCompany: text('target_company').notNull().default(''),
   resumeUrl: text('resume_url').notNull().default(''),
+  resumeFileName: text('resume_file_name').notNull().default(''),
   resumeText: text('resume_text').notNull().default(''),
   githubUrl: text('github_url').notNull().default(''),
   linkedinUrl: text('linkedin_url').notNull().default(''),
@@ -149,6 +159,47 @@ export const opportunities = pgTable('opportunities', {
   isRemote: boolean('is_remote').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const studentResumes = pgTable('student_resumes', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  fileName: text('file_name').notNull(),
+  fileData: bytea('file_data').notNull(),
+  extractedData: jsonb('extracted_data')
+    .$type<Record<string, string[]>>()
+    .notNull()
+    .default({}),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const opportunityApplications = pgTable(
+  'opportunity_applications',
+  {
+    id: text('id').primaryKey(),
+    opportunityId: text('opportunity_id')
+      .notNull()
+      .references(() => opportunities.id, { onDelete: 'cascade' }),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'),
+    resumeFileName: text('resume_file_name').notNull(),
+    resumeData: bytea('resume_data').notNull(),
+    extractedData: jsonb('extracted_data')
+      .$type<Record<string, string[]>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('opportunity_application_student_idx').on(
+      table.opportunityId,
+      table.studentId,
+    ),
+  ],
+);
 
 export const knowledgeGuides = pgTable('knowledge_guides', {
   id: text('id').primaryKey(),

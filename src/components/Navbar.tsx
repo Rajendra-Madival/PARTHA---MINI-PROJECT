@@ -54,13 +54,13 @@ export function Navbar({
       ? [
           {
             id: 'discover',
-            label: 'Find Mentors',
-            mobileLabel: 'Mentors',
+            label: 'Find Alumni',
+            mobileLabel: 'Alumni',
             icon: Compass,
           },
           {
             id: 'connections',
-            label: 'My Mentors',
+            label: 'My Connections',
             mobileLabel: 'Chats',
             icon: Users,
             count: unreadMentorshipsCount,
@@ -107,7 +107,7 @@ export function Navbar({
             },
             {
               id: 'discover',
-              label: 'Mentor Directory',
+              label: 'Alumni Directory',
               mobileLabel: 'Directory',
               icon: Compass,
             },
@@ -143,6 +143,12 @@ export function Navbar({
               label: 'Opportunities',
               mobileLabel: 'Jobs',
               icon: Briefcase,
+            },
+            {
+              id: 'guides',
+              label: 'Prep Guides',
+              mobileLabel: 'Guides',
+              icon: BookOpen,
             },
             {
               id: 'profile',
@@ -250,7 +256,9 @@ export function Navbar({
         aria-label="Mobile Navigation"
         className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 border-t border-[#E5DFD0] bg-[#FFFEFA]/95 backdrop-blur-sm"
       >
-        <div className="grid h-full grid-cols-5">
+        <div
+          className={`grid h-full ${navItems.length > 5 ? 'grid-cols-7' : 'grid-cols-5'}`}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

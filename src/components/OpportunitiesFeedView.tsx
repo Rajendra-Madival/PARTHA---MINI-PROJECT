@@ -7,12 +7,14 @@ import {
   ExternalLink,
   MapPin,
   Plus,
+  Upload,
   ThumbsUp,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type {
   KnowledgeGuide,
   Opportunity,
+  OpportunityApplication,
   OpportunityType,
   UserRole,
 } from '../types';
@@ -30,6 +32,8 @@ interface OpportunitiesFeedViewProps {
   opportunitiesTotal: number;
   opportunitiesPage: number;
   opportunitiesTotalPages: number;
+  appliedOpportunityIds: string[];
+  myApplications: OpportunityApplication[];
   guides: KnowledgeGuide[];
   guidesTotal: number;
   guidesPage: number;
@@ -45,6 +49,7 @@ interface OpportunitiesFeedViewProps {
   onOpportunitiesPageChange: (page: number) => void;
   onGuidesPageChange: (page: number) => void;
   onToggleSaveOpportunity: (opportunityId: string) => Promise<void>;
+  onApply: (opportunityId: string, file: File) => Promise<void>;
   onToggleUpvote: (guideId: string) => Promise<void>;
   onOpenGuide: (guideId: string) => void;
   onOpenPostModal: (mode: 'opportunity' | 'guide') => void;
@@ -59,6 +64,8 @@ export function OpportunitiesFeedView({
   opportunitiesTotal,
   opportunitiesPage,
   opportunitiesTotalPages,
+  appliedOpportunityIds,
+  myApplications,
   guides,
   guidesTotal,
   guidesPage,
@@ -74,15 +81,15 @@ export function OpportunitiesFeedView({
   onOpportunitiesPageChange,
   onGuidesPageChange,
   onToggleSaveOpportunity,
+  onApply,
   onToggleUpvote,
   onOpenGuide,
   onOpenPostModal,
 }: OpportunitiesFeedViewProps) {
-  const [feedTab, setFeedTab] = useState<'opportunities' | 'guides'>(initialFeed);
-
-  useEffect(() => {
-    setFeedTab(initialFeed);
-  }, [initialFeed]);
+  const [applyOpportunity, setApplyOpportunity] = useState<Opportunity | null>(null);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
 
   const domains = ['All', ...availableDomains];
 
@@ -91,59 +98,68 @@ export function OpportunitiesFeedView({
       <section className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight text-[#18221D]">
-            Opportunities &amp; Prep Guides
+            {initialFeed === 'opportunities' ? 'Opportunities' : 'Prep Guides'}
           </h1>
           <p className="mt-1 text-sm text-stone-600">
-            Internships, full-time openings, capstone projects, and student-upvoted career guides shared by KLS VDIT alumni.
+            {initialFeed === 'opportunities'
+              ? 'Internships, jobs, hackathons, competitions, and research openings shared by alumni.'
+              : 'Interview preparation, learning resources, roadmaps, and career guides shared by alumni.'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="flex items-center gap-1 rounded-lg border border-[#E5DFD0] bg-[#F3EFE4] p-1">
-            <button
-              type="button"
-              onClick={() => setFeedTab('opportunities')}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                feedTab === 'opportunities'
-                  ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                  : 'text-stone-600 hover:text-[#18221D]'
-              }`}
-            >
-              Opportunities ({opportunitiesTotal})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFeedTab('guides')}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                feedTab === 'guides'
-                  ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                  : 'text-stone-600 hover:text-[#18221D]'
-              }`}
-            >
-              Prep Guides ({guidesTotal})
-            </button>
-          </div>
-
           {((role === 'alumni' && canAlumniPost) || role === 'admin') && (
             <button
               type="button"
               onClick={() =>
-                onOpenPostModal(feedTab === 'opportunities' ? 'opportunity' : 'guide')
+                onOpenPostModal(initialFeed === 'opportunities' ? 'opportunity' : 'guide')
               }
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Post Opportunity / Guide
+              {initialFeed === 'opportunities' ? 'Post Opportunity' : 'Publish Prep Guide'}
             </button>
           )}
         </div>
       </section>
 
+      {initialFeed === 'opportunities' &&
+        role === 'student' &&
+        myApplications.length > 0 && (
+          <section className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-4">
+            <h2 className="font-display text-sm font-semibold text-[#18221D]">
+              Your Applications ({myApplications.length})
+            </h2>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {myApplications.map((application) => (
+                <li
+                  key={application.id}
+                  className="rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-3 py-2 text-xs text-stone-700"
+                >
+                  {application.opportunityTitle}
+                  <span className="ml-2 font-semibold capitalize text-emerald-800">
+                    {application.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {feedTab === 'opportunities' ? (
+        {initialFeed === 'opportunities' ? (
           <div className="flex flex-wrap items-center gap-2">
             {(
-              ['All', 'Internship', 'Full-time Job', 'Collaborative Project'] as const
+              [
+                'All',
+                'Internship',
+                'Full-time Job',
+                'Hackathon',
+                'Competition',
+                'Research Opportunity',
+                'Collaborative Project',
+                'Other',
+              ] as const
             ).map((type) => (
               <button
                 key={type}
@@ -195,12 +211,12 @@ export function OpportunitiesFeedView({
       </div>
 
       {loading ? (
-        feedTab === 'opportunities' ? (
+        initialFeed === 'opportunities' ? (
           <OpportunitiesSkeletonGrid />
         ) : (
           <GuidesSkeletonList />
         )
-      ) : feedTab === 'opportunities' ? (
+      ) : initialFeed === 'opportunities' ? (
         opportunities.length === 0 ? (
           <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-6 py-10 text-center">
             <h2 className="font-display text-sm font-semibold text-[#18221D]">
@@ -292,16 +308,49 @@ export function OpportunitiesFeedView({
                         </p>
                       </div>
 
-                      <a
-                        href={opp.applyUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap shrink-0"
-                      >
-                        <Briefcase className="h-3.5 w-3.5" aria-hidden="true" />
-                        Apply
-                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                      </a>
+                      {role === 'student' ? (
+                        <div className="flex items-center gap-2">
+                          {opp.applyUrl && (
+                            <a
+                              href={opp.applyUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#E5DFD0] px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4]"
+                            >
+                              External link
+                              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            disabled={appliedOpportunityIds.includes(opp.id)}
+                            onClick={() => {
+                              setApplyOpportunity(opp);
+                              setResumeFile(null);
+                              setApplyError(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-900 disabled:cursor-default disabled:bg-emerald-100 disabled:text-emerald-900 whitespace-nowrap shrink-0"
+                          >
+                            <Briefcase className="h-3.5 w-3.5" aria-hidden="true" />
+                            {appliedOpportunityIds.includes(opp.id) ? 'Applied' : 'Apply with Resume'}
+                          </button>
+                        </div>
+                      ) : opp.applyUrl ? (
+                        <a
+                          href={opp.applyUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap shrink-0"
+                        >
+                          <Briefcase className="h-3.5 w-3.5" aria-hidden="true" />
+                          External Apply
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
+                      ) : (
+                        <span className="text-xs font-medium text-stone-500">
+                          Apply through PARTHA
+                        </span>
+                      )}
                     </div>
                   </article>
                 );
@@ -447,6 +496,102 @@ export function OpportunitiesFeedView({
             </div>
           )}
         </>
+      )}
+      {applyOpportunity && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="apply-opportunity-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4"
+        >
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (!resumeFile) {
+                setApplyError('Choose a PDF resume to apply.');
+                return;
+              }
+              setApplying(true);
+              setApplyError(null);
+              try {
+                await onApply(applyOpportunity.id, resumeFile);
+                setApplyOpportunity(null);
+                setResumeFile(null);
+              } catch (err) {
+                setApplyError(
+                  err instanceof Error ? err.message : 'Unable to submit application.',
+                );
+              } finally {
+                setApplying(false);
+              }
+            }}
+            className="w-full max-w-md space-y-4 rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-6 shadow-xl"
+          >
+            <div>
+              <h2
+                id="apply-opportunity-title"
+                className="font-display text-lg font-semibold text-[#18221D]"
+              >
+                Apply: {applyOpportunity.title}
+              </h2>
+              <p className="mt-1 text-xs text-stone-600">
+                Upload your PDF resume. Only the opportunity poster and admins can view it.
+              </p>
+            </div>
+            <label className="block space-y-1.5 text-xs font-semibold text-stone-700">
+              Resume (PDF, max 2 MB)
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                required
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  if (
+                    file &&
+                    ((file.type && file.type !== 'application/pdf') ||
+                      !/\.pdf$/i.test(file.name) ||
+                      file.size === 0 ||
+                      file.size > 2 * 1024 * 1024)
+                  ) {
+                    setApplyError('Choose a non-empty PDF file up to 2 MB.');
+                    event.target.value = '';
+                    setResumeFile(null);
+                    return;
+                  }
+                  setResumeFile(file);
+                  setApplyError(null);
+                }}
+                className="block w-full text-xs font-normal text-stone-700 file:mr-3 file:rounded-md file:border file:border-[#E5DFD0] file:bg-[#FAF7F0] file:px-3 file:py-1.5 file:text-xs"
+              />
+            </label>
+            {resumeFile && (
+              <p className="text-xs text-stone-500">{resumeFile.name}</p>
+            )}
+            {applyError && (
+              <p role="alert" className="text-xs font-medium text-red-700">
+                {applyError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 border-t border-[#EEE9DC] pt-3">
+              <button
+                type="button"
+                onClick={() => setApplyOpportunity(null)}
+                disabled={applying}
+                className="rounded-lg border border-[#E5DFD0] px-3.5 py-2 text-xs font-medium text-stone-700 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={applying || !resumeFile}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                {applying ? 'Submitting…' : 'Submit Application'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

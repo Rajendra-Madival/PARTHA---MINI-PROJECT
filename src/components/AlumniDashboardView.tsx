@@ -14,13 +14,19 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import type { AlumniProfile, AuthUser, MentorshipRequest } from '../types';
+import type {
+  AlumniProfile,
+  AuthUser,
+  MentorshipRequest,
+  OpportunityApplication,
+} from '../types';
 import { Avatar } from './Avatar';
 
 interface AlumniDashboardViewProps {
   user: AuthUser;
   alumniProfile?: AlumniProfile;
   requests: MentorshipRequest[];
+  applications: OpportunityApplication[];
   loading?: boolean;
   onRespond: (
     requestId: string,
@@ -35,12 +41,18 @@ interface AlumniDashboardViewProps {
   onConfirmSession: (requestId: string) => Promise<void>;
   onMarkRead: (requestId: string) => Promise<void>;
   onEditDetails?: () => void;
+  onUpdateApplicationStatus: (
+    applicationId: string,
+    status: OpportunityApplication['status'],
+  ) => Promise<void>;
+  onDownloadApplicationResume: (applicationId: string) => Promise<void>;
 }
 
 export function AlumniDashboardView({
   user,
   alumniProfile,
   requests,
+  applications,
   loading = false,
   onRespond,
   onOpenPostModal,
@@ -49,6 +61,8 @@ export function AlumniDashboardView({
   onConfirmSession,
   onMarkRead,
   onEditDetails,
+  onUpdateApplicationStatus,
+  onDownloadApplicationResume,
 }: AlumniDashboardViewProps) {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
@@ -62,6 +76,7 @@ export function AlumniDashboardView({
   const pendingRequests = requests.filter((r) => r.status === 'pending');
   const acceptedRequests = requests.filter((r) => r.status === 'accepted');
   const declinedRequests = requests.filter((r) => r.status === 'declined');
+  const [applicationError, setApplicationError] = useState<string | null>(null);
 
   async function handleAction(
     requestId: string,
@@ -157,14 +172,24 @@ export function AlumniDashboardView({
               </button>
             )}
             {!isPendingVerification && !isRejected && (
-              <button
-                type="button"
-                onClick={() => onOpenPostModal('opportunity')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Post Opportunity / Guide
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => onOpenPostModal('opportunity')}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Post Opportunity
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenPostModal('guide')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-[#F3EFE4] whitespace-nowrap cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Publish Prep Guide
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -434,7 +459,7 @@ export function AlumniDashboardView({
                             </div>
                           ) : (
                             <p className="text-xs text-stone-500">
-                              No call slot requested yet. The student can pick a 20-minute slot from their My Mentors tab.
+                              No call slot requested yet. The student can pick a 20-minute slot from their My Connections tab.
                             </p>
                           )}
                         </div>
@@ -547,6 +572,95 @@ export function AlumniDashboardView({
               </div>
             </section>
           )}
+
+          <section className="space-y-3">
+            <h2 className="font-display text-base font-semibold text-[#18221D]">
+              Opportunity Applications ({applications.length})
+            </h2>
+            {applications.length === 0 ? (
+              <div className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-6 py-8 text-center text-xs text-stone-500">
+                No applications have been received for your opportunities.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {applications.map((application) => (
+                  <article
+                    key={application.id}
+                    className="flex flex-col gap-3 rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm text-[#18221D]">
+                        {application.studentName}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-stone-600">
+                        {application.opportunityTitle} · Sem {application.studentSemester}{' '}
+                        {application.studentBranch} · {application.studentEmail}
+                      </p>
+                      <p className="mt-1 text-[11px] text-stone-500">
+                        {application.resumeFileName} · {application.createdAt.slice(0, 10)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md border border-[#E5DFD0] bg-[#FAF7F0] px-2.5 py-1 text-xs capitalize text-stone-700">
+                        {application.status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void onDownloadApplicationResume(application.id).catch((err) =>
+                            setApplicationError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Unable to download resume.',
+                            ),
+                          )
+                        }
+                        className="rounded-lg border border-[#E5DFD0] px-3 py-1.5 text-xs font-medium text-stone-700"
+                      >
+                        View Resume
+                      </button>
+                      {application.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void onUpdateApplicationStatus(application.id, 'reviewed')
+                            }
+                            className="rounded-lg border border-[#E5DFD0] px-3 py-1.5 text-xs font-medium text-stone-700"
+                          >
+                            Mark Reviewed
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void onUpdateApplicationStatus(application.id, 'accepted')
+                            }
+                            className="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void onUpdateApplicationStatus(application.id, 'declined')
+                            }
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            {applicationError && (
+              <p role="alert" className="text-xs text-red-700">
+                {applicationError}
+              </p>
+            )}
+          </section>
         </>
       )}
     </div>

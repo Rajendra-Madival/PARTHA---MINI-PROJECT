@@ -1,6 +1,7 @@
 import type {
   AdminBootstrapStatus,
   AdminMetrics,
+  AdminStudentRecord,
   AlumniDiscoveryResponse,
   AlumniProfile,
   AuthSession,
@@ -13,6 +14,7 @@ import type {
   MentorshipGoal,
   MentorshipRequest,
   OpportunitiesPaginatedResponse,
+  OpportunityApplication,
   Opportunity,
   OpportunityType,
   ParthaNotification,
@@ -131,6 +133,8 @@ export const parthaApi = {
     semester: number;
     targetSkills: string[];
     targetDomain: string;
+    mentorshipGoals: string[];
+    customMentorshipGoal: string;
     password: string;
   }): Promise<AuthSession> {
     const session = await requestJson<AuthSession>('/api/auth/register-student', {
@@ -145,16 +149,9 @@ export const parthaApi = {
     name: string;
     email: string;
     phone: string;
-    linkedinUrl: string;
     regNumber: string;
     graduationYear: number;
     branch: BranchCode;
-    role: string;
-    company: string;
-    domain: string;
-    skills: string[];
-    location: string;
-    bio: string;
     password: string;
   }): Promise<AuthSession> {
     const session = await requestJson<AuthSession>('/api/auth/register-alumni', {
@@ -206,6 +203,18 @@ export const parthaApi = {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
+  },
+
+  uploadStudentResume(file: File): Promise<{ fileName: string }> {
+    return uploadPdf<{ fileName: string }>('/api/student-profile/resume', file);
+  },
+
+  getStudentResume(): Promise<Blob> {
+    return downloadPdf('/api/student-profile/resume');
+  },
+
+  getAdminStudentResume(studentId: string): Promise<Blob> {
+    return downloadPdf(`/api/admin/students/${encodeURIComponent(studentId)}/resume`);
   },
 
   updateAlumniDetails(payload: {
@@ -399,6 +408,39 @@ export const parthaApi = {
     });
   },
 
+  submitOpportunityApplication(
+    opportunityId: string,
+    file: File,
+  ): Promise<OpportunityApplication> {
+    return uploadPdf<OpportunityApplication>(
+      `/api/opportunities/${encodeURIComponent(opportunityId)}/applications`,
+      file,
+    );
+  },
+
+  getOpportunityApplications(): Promise<OpportunityApplication[]> {
+    return requestJson<OpportunityApplication[]>('/api/opportunity-applications');
+  },
+
+  getOpportunityApplicationResume(applicationId: string): Promise<Blob> {
+    return downloadPdf(
+      `/api/opportunity-applications/${encodeURIComponent(applicationId)}/resume`,
+    );
+  },
+
+  updateOpportunityApplicationStatus(
+    applicationId: string,
+    status: OpportunityApplication['status'],
+  ): Promise<OpportunityApplication> {
+    return requestJson<OpportunityApplication>(
+      `/api/opportunity-applications/${encodeURIComponent(applicationId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      },
+    );
+  },
+
   getGuides(options: GuidesQueryParams = {}): Promise<GuidesPaginatedResponse> {
     const params = new URLSearchParams();
     if (options.page) params.set('page', String(options.page));
@@ -479,4 +521,63 @@ export const parthaApi = {
   getAdminMetrics(): Promise<AdminMetrics> {
     return requestJson<AdminMetrics>('/api/admin/metrics');
   },
+
+  getAdminStudents(): Promise<AdminStudentRecord[]> {
+    return requestJson<AdminStudentRecord[]>('/api/admin/students');
+  },
+
+  setAdminAccountActive(
+    userId: string,
+    isActive: boolean,
+  ): Promise<{ userId: string; isActive: boolean }> {
+    return requestJson<{ userId: string; isActive: boolean }>(
+      `/api/admin/users/${encodeURIComponent(userId)}/status`,
+      { method: 'PATCH', body: JSON.stringify({ isActive }) },
+    );
+  },
 };
+
+async function uploadPdf<T>(url: string, file: File): Promise<T> {
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if (!isPdf || file.size === 0 || file.size > 2 * 1024 * 1024) {
+    throw new Error('Choose a PDF file up to 2 MB.');
+  }
+  const token = getAuthToken();
+  const response = await fetch(`${url}?filename=${encodeURIComponent(file.name)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/pdf',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: file,
+  });
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Ignore non-JSON error bodies.
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
+async function downloadPdf(url: string): Promise<Blob> {
+  const token = getAuthToken();
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Ignore non-JSON error bodies.
+    }
+    throw new Error(message);
+  }
+  return response.blob();
+}

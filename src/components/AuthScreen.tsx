@@ -10,6 +10,9 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { parthaApi } from '../services/api';
+import { DomainSelect } from './DomainSelect';
+import { SkillPicker } from './SkillPicker';
+import { MENTORSHIP_GOALS } from './profileOptions';
 import type {
   AdminBootstrapStatus,
   AuthSession,
@@ -23,18 +26,11 @@ interface AuthScreenProps {
   bootstrapStatus: AdminBootstrapStatus | null;
   checkingConnection: boolean;
   onRetryHealth: () => Promise<void>;
-  onAuthenticated: (session: AuthSession) => void;
+  onAuthenticated: (session: AuthSession, notice?: string) => void;
+  embedded?: boolean;
 }
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
-const DOMAINS = [
-  'Machine Learning & AI',
-  'Cloud & Distributed Systems',
-  'Full-Stack & FinTech',
-  'Embedded & Robotics',
-  'Data Engineering',
-  'Cybersecurity & Infra',
-];
 
 const ROLE_TABS: Array<{
   id: UserRole;
@@ -60,6 +56,7 @@ export function AuthScreen({
   checkingConnection,
   onRetryHealth,
   onAuthenticated,
+  embedded = false,
 }: AuthScreenProps) {
   const prefersReducedMotion = useReducedMotion();
   const [role, setRole] = useState<UserRole>('student');
@@ -93,8 +90,11 @@ export function AuthScreen({
   const [stuBranch, setStuBranch] = useState<BranchCode>('CSE');
   const [stuSemester, setStuSemester] = useState(6);
   const [stuEmail, setStuEmail] = useState('');
-  const [stuSkills, setStuSkills] = useState('Python, Machine Learning');
-  const [stuDomain, setStuDomain] = useState(DOMAINS[0]);
+  const [stuSkills, setStuSkills] = useState<string[]>(['Python', 'Machine Learning']);
+  const [stuDomain, setStuDomain] = useState('AI / Machine Learning');
+  const [stuGoals, setStuGoals] = useState<string[]>([]);
+  const [stuCustomGoal, setStuCustomGoal] = useState('');
+  const [stuResumeFile, setStuResumeFile] = useState<File | null>(null);
   const [stuPassword, setStuPassword] = useState('');
 
   // Alumni registration state
@@ -102,13 +102,8 @@ export function AuthScreen({
   const [aluUsn, setAluUsn] = useState('');
   const [aluGradYear, setAluGradYear] = useState(2022);
   const [aluBranch, setAluBranch] = useState<BranchCode>('CSE');
-  const [aluCompany, setAluCompany] = useState('');
-  const [aluRole, setAluRole] = useState('');
-  const [aluDomain, setAluDomain] = useState(DOMAINS[2]);
-  const [aluSkills, setAluSkills] = useState('TypeScript, React, Node.js');
   const [aluEmail, setAluEmail] = useState('');
   const [aluPhone, setAluPhone] = useState('');
-  const [aluLinkedin, setAluLinkedin] = useState('');
   const [aluPassword, setAluPassword] = useState('');
 
   const dbConnected = Boolean(dbHealth?.databaseConnected);
@@ -202,14 +197,31 @@ export function AuthScreen({
         usn: stuUsn,
         branch: stuBranch,
         semester: stuSemester,
-        targetSkills: stuSkills
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        targetSkills: stuSkills,
         targetDomain: stuDomain,
+        mentorshipGoals: stuGoals,
+        customMentorshipGoal: stuGoals.includes('Other') ? stuCustomGoal : '',
         password: stuPassword,
       });
-      onAuthenticated(session);
+      let uploadNotice: string | undefined;
+      if (stuResumeFile) {
+        try {
+          await parthaApi.uploadStudentResume(stuResumeFile);
+        } catch (uploadError) {
+          uploadNotice =
+            uploadError instanceof Error
+              ? `Account created, but resume upload failed: ${uploadError.message}`
+              : 'Account created, but resume upload failed. Try again from your profile.';
+        }
+        if (!uploadNotice) {
+          try {
+            session.user = await parthaApi.getMe();
+          } catch {
+            uploadNotice = 'Resume uploaded; refresh your profile to see the updated filename.';
+          }
+        }
+      }
+      onAuthenticated(session, uploadNotice);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
@@ -226,19 +238,9 @@ export function AuthScreen({
         name: aluName,
         email: aluEmail,
         phone: aluPhone,
-        linkedinUrl: aluLinkedin,
         regNumber: aluUsn,
         graduationYear: aluGradYear,
         branch: aluBranch,
-        role: aluRole,
-        company: aluCompany,
-        domain: aluDomain,
-        skills: aluSkills
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        location: 'Bengaluru',
-        bio: '',
         password: aluPassword,
       });
       onAuthenticated(session);
@@ -944,29 +946,96 @@ export function AuthScreen({
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
                         Domain
                       </label>
-                      <select
+                      <DomainSelect
+                        id="student-registration-domain"
                         value={stuDomain}
-                        onChange={(e) => setStuDomain(e.target.value)}
+                        onChange={setStuDomain}
                         className={COMPACT_INPUT_CLASS}
-                      >
-                        {DOMAINS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-700 mb-1">
                         Skills
                       </label>
-                      <input
-                        type="text"
-                        value={stuSkills}
-                        onChange={(e) => setStuSkills(e.target.value)}
+                      <SkillPicker
+                        id="student-registration-skills"
+                        skills={stuSkills}
+                        onChange={setStuSkills}
                         className={COMPACT_INPUT_CLASS}
                       />
                     </div>
+                  </div>
+
+                  <fieldset className="space-y-2 border-t border-[#EEE9DC] pt-3">
+                    <legend className="text-xs font-semibold text-stone-700">
+                      Select Your Mentorship Goals
+                    </legend>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {MENTORSHIP_GOALS.map((goal) => (
+                        <label
+                          key={goal}
+                          className="inline-flex items-center gap-2 text-xs text-stone-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={stuGoals.includes(goal)}
+                            onChange={(event) =>
+                              setStuGoals((current) =>
+                                event.target.checked
+                                  ? [...current, goal]
+                                  : current.filter((item) => item !== goal),
+                              )
+                            }
+                            className="h-3.5 w-3.5 accent-emerald-800"
+                          />
+                          {goal}
+                        </label>
+                      ))}
+                    </div>
+                    {stuGoals.includes('Other') && (
+                      <input
+                        type="text"
+                        required
+                        maxLength={240}
+                        value={stuCustomGoal}
+                        onChange={(event) => setStuCustomGoal(event.target.value)}
+                        placeholder="Describe your mentorship requirement"
+                        className={COMPACT_INPUT_CLASS}
+                      />
+                    )}
+                  </fieldset>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Resume PDF (optional, max 2 MB)
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        if (
+                          file &&
+                          ((file.type && file.type !== 'application/pdf') ||
+                            !/\.pdf$/i.test(file.name) ||
+                            file.size === 0 ||
+                            file.size > 2 * 1024 * 1024)
+                        ) {
+                          setError('Choose a non-empty PDF file up to 2 MB.');
+                          event.target.value = '';
+                          setStuResumeFile(null);
+                          return;
+                        }
+                        setError(null);
+                        setStuResumeFile(file);
+                      }}
+                      className="block w-full text-xs text-stone-700 file:mr-3 file:rounded-md file:border file:border-[#E5DFD0] file:bg-[#FAF7F0] file:px-3 file:py-1.5 file:text-xs"
+                    />
+                    {stuResumeFile && (
+                      <p className="mt-1 text-[11px] text-stone-500">
+                        {stuResumeFile.name}
+                      </p>
+                    )}
                   </div>
 
                   {error && (
@@ -989,7 +1058,7 @@ export function AuthScreen({
                 </form>
               ) : (
                 <form onSubmit={handleAlumniRegister} className="my-auto space-y-3">
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2">
                     <div>
                       <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
                         Full Name
@@ -1033,36 +1102,13 @@ export function AuthScreen({
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Company
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={aluCompany}
-                        onChange={(e) => setAluCompany(e.target.value)}
-                        className={COMPACT_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Role
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={aluRole}
-                        onChange={(e) => setAluRole(e.target.value)}
-                        className={COMPACT_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Grad Year
+                        Graduation Year
                       </label>
                       <input
                         type="number"
                         min={1995}
                         max={2035}
+                        required
                         value={aluGradYear}
                         onChange={(e) => setAluGradYear(Number(e.target.value))}
                         className={`${COMPACT_INPUT_CLASS} tabular-nums`}
@@ -1070,34 +1116,7 @@ export function AuthScreen({
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Domain
-                      </label>
-                      <select
-                        value={aluDomain}
-                        onChange={(e) => setAluDomain(e.target.value)}
-                        className={COMPACT_INPUT_CLASS}
-                      >
-                        {DOMAINS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Skills
-                      </label>
-                      <input
-                        type="text"
-                        value={aluSkills}
-                        onChange={(e) => setAluSkills(e.target.value)}
-                        className={COMPACT_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        Phone
+                        Phone Number (optional)
                       </label>
                       <input
                         type="text"
@@ -1116,18 +1135,6 @@ export function AuthScreen({
                         required
                         value={aluEmail}
                         onChange={(e) => setAluEmail(e.target.value)}
-                        className={COMPACT_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-stone-700 mb-0.5">
-                        LinkedIn URL
-                      </label>
-                      <input
-                        type="url"
-                        value={aluLinkedin}
-                        onChange={(e) => setAluLinkedin(e.target.value)}
-                        placeholder="https://linkedin.com/in/..."
                         className={COMPACT_INPUT_CLASS}
                       />
                     </div>
@@ -1212,6 +1219,10 @@ export function AuthScreen({
         </div>
       </motion.div>
   );
+
+  if (embedded) {
+    return <div className="partha-auth-embedded">{authCardContent}</div>;
+  }
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF7F0] text-[#18221D]">

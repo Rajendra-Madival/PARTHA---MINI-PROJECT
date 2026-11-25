@@ -11,16 +11,32 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { AdminMetrics, AlumniProfile } from '../types';
+import type {
+  AdminMetrics,
+  AdminStudentRecord,
+  AlumniProfile,
+  MentorshipRequest,
+  OpportunityApplication,
+} from '../types';
 import { Avatar } from './Avatar';
 
 interface AdminDashboardViewProps {
   allAlumni: AlumniProfile[];
+  allStudents: AdminStudentRecord[];
+  mentorships: MentorshipRequest[];
+  applications: OpportunityApplication[];
   metrics: AdminMetrics | null;
   loading?: boolean;
   onVerify: (alumniId: string) => Promise<void>;
   onReject: (alumniId: string) => Promise<void>;
+  onSetAccountActive: (userId: string, isActive: boolean) => Promise<void>;
   onOpenSeniorForm?: () => void;
+  onUpdateApplicationStatus: (
+    applicationId: string,
+    status: OpportunityApplication['status'],
+  ) => Promise<void>;
+  onDownloadApplicationResume: (applicationId: string) => Promise<void>;
+  onDownloadStudentResume: (studentId: string) => Promise<void>;
 }
 
 function escapeCsvCell(value: string | number): string {
@@ -33,31 +49,43 @@ function escapeCsvCell(value: string | number): string {
 
 export function AdminDashboardView({
   allAlumni,
+  allStudents,
+  mentorships,
+  applications,
   metrics,
   loading = false,
   onVerify,
   onReject,
+  onSetAccountActive,
   onOpenSeniorForm,
+  onUpdateApplicationStatus,
+  onDownloadApplicationResume,
+  onDownloadStudentResume,
 }: AdminDashboardViewProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const pendingQueue = allAlumni.filter((a) => a.verificationStatus === 'pending');
   const verifiedList = allAlumni.filter((a) => a.verificationStatus === 'verified');
+  const rejectedList = allAlumni.filter((a) => a.verificationStatus === 'rejected');
 
   const topDomains = metrics?.topDomains ?? [];
   const maxDomainTotal = Math.max(
     1,
-    ...topDomains.map((d) => d.alumniCount + d.guideCount),
+    ...topDomains.map((d) => d.alumniCount + d.guideCount + d.studentCount),
   );
   const branchBreakdown = metrics?.branchBreakdown ?? [];
   const maxBranchCount = Math.max(
     1,
     ...branchBreakdown.map((b) => b.alumniCount),
   );
-  const totalRequestsSent =
-    (metrics?.activeMentorshipConnections ?? 0) +
-    (metrics?.pendingMentorshipRequests ?? 0) +
-    (metrics?.declinedMentorshipRequests ?? 0);
+  const totalRequestsSent = mentorships.length;
+  const activeStudentIds = new Set(
+    mentorships.filter((request) => request.status === 'accepted').map((request) => request.studentId),
+  );
+  const unmatchedStudents = allStudents.filter(
+    (student) => !activeStudentIds.has(student.profile.id),
+  );
 
   function handleDownloadCsv() {
     const header = [
@@ -112,6 +140,43 @@ export function AdminDashboardView({
       await onReject(id);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleAccountStatus(userId: string, isActive: boolean) {
+    setBusyId(userId);
+    setDetailError(null);
+    try {
+      await onSetAccountActive(userId, isActive);
+    } catch (err) {
+      setDetailError(
+        err instanceof Error ? err.message : 'Unable to update account status.',
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleApplicationStatus(
+    id: string,
+    status: OpportunityApplication['status'],
+  ) {
+    setDetailError(null);
+    try {
+      await onUpdateApplicationStatus(id, status);
+    } catch (err) {
+      setDetailError(
+        err instanceof Error ? err.message : 'Unable to update application status.',
+      );
+    }
+  }
+
+  async function handleResumeDownload(download: () => Promise<void>) {
+    setDetailError(null);
+    try {
+      await download();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'Unable to download resume.');
     }
   }
 
@@ -207,7 +272,7 @@ export function AdminDashboardView({
               </div>
               {topDomains.length === 0 ? (
                 <p className="mt-2 text-xs text-stone-500">
-                  No verified domains yet
+                  No student or alumni domains yet
                 </p>
               ) : (
                 <ul className="mt-2 space-y-1 text-xs">
@@ -218,7 +283,7 @@ export function AdminDashboardView({
                     >
                       <span className="truncate">{d.domain}</span>
                       <span className="font-mono font-medium text-[#18221D] tabular-nums shrink-0">
-                        {d.alumniCount}
+                        {d.studentCount} students
                       </span>
                     </li>
                   ))}
@@ -240,7 +305,7 @@ export function AdminDashboardView({
                     aria-hidden="true"
                   />
                   <h2 className="font-display text-sm font-semibold text-[#18221D]">
-                    Domain Distribution (Verified Alumni &amp; Prep Guides)
+                    Domain Distribution (Students, Alumni &amp; Prep Guides)
                   </h2>
                 </div>
                 <span className="text-[11px] text-stone-500">
@@ -255,7 +320,8 @@ export function AdminDashboardView({
               ) : (
                 <div className="space-y-3">
                   {topDomains.map((d) => {
-                    const combined = d.alumniCount + d.guideCount;
+                    const combined =
+                      d.alumniCount + d.guideCount + d.studentCount;
                     const widthPct = Math.max(
                       8,
                       Math.round((combined / maxDomainTotal) * 100),
@@ -267,7 +333,7 @@ export function AdminDashboardView({
                             {d.domain}
                           </span>
                           <span className="font-mono text-stone-600 tabular-nums">
-                            {d.alumniCount} alumni · {d.guideCount} guides
+                            {d.studentCount} students · {d.alumniCount} alumni · {d.guideCount} guides
                           </span>
                         </div>
                         <div className="h-2 w-full overflow-hidden rounded-full bg-[#F3EFE4]">
@@ -318,6 +384,25 @@ export function AdminDashboardView({
 
               <div className="border-t border-[#EEE9DC] pt-3.5 space-y-2">
                 <h3 className="text-xs font-semibold text-[#18221D]">
+                  Most Requested Mentorship Goals
+                </h3>
+                {metrics?.mentorshipGoalBreakdown.length ? (
+                  metrics.mentorshipGoalBreakdown.slice(0, 5).map((item) => (
+                    <div
+                      key={item.goal}
+                      className="flex items-center justify-between gap-3 text-xs text-stone-600"
+                    >
+                      <span className="truncate">{item.goal}</span>
+                      <span className="font-mono tabular-nums">{item.requestCount}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-stone-500">No goal selections recorded yet.</p>
+                )}
+              </div>
+
+              <div className="border-t border-[#EEE9DC] pt-3.5 space-y-2">
+                <h3 className="text-xs font-semibold text-[#18221D]">
                   Verified Alumni by Branch
                 </h3>
                 <div className="space-y-2">
@@ -356,7 +441,7 @@ export function AdminDashboardView({
             Alumni Verification Queue ({pendingQueue.length})
           </h2>
           <span className="text-xs text-stone-500">
-            Only verified alumni appear in Find Mentors
+            Only verified alumni appear in the Alumni Directory
           </span>
         </div>
 
@@ -433,6 +518,16 @@ export function AdminDashboardView({
                     <div className="flex items-center gap-2.5 shrink-0">
                       <button
                         type="button"
+                        disabled={busyId === item.ownerUid}
+                        onClick={() =>
+                          void handleAccountStatus(item.ownerUid, !item.accountActive)
+                        }
+                        className="text-[11px] font-medium text-red-700 underline disabled:opacity-50"
+                      >
+                        {item.accountActive ? 'Suspend account' : 'Reactivate account'}
+                      </button>
+                      <button
+                        type="button"
                         disabled={busy}
                         onClick={() => handleReject(item.id)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5DFD0] bg-[#FAF7F0] px-3.5 py-2 text-xs font-medium text-stone-700 hover:bg-[#F3EFE4] disabled:opacity-60 cursor-pointer whitespace-nowrap"
@@ -459,6 +554,57 @@ export function AdminDashboardView({
       </section>
 
       <section className="space-y-3">
+        <h2 className="font-display text-base font-semibold text-[#18221D]">
+          Rejected Alumni Accounts ({rejectedList.length})
+        </h2>
+        <div className="overflow-x-auto rounded-xl border border-[#E5DFD0] bg-[#FFFEFA]">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-[#E5DFD0] bg-[#F3EFE4] text-stone-700">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Alumnus</th>
+                <th className="px-4 py-3 font-semibold">Role &amp; Company</th>
+                <th className="px-4 py-3 font-semibold">Account</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EEE9DC]">
+              {rejectedList.map((alumnus) => (
+                <tr key={alumnus.id}>
+                  <td className="px-4 py-3 font-medium text-[#18221D]">
+                    {alumnus.name}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {alumnus.role}, {alumnus.company}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={alumnus.accountActive ? 'text-emerald-800' : 'font-medium text-red-700'}>
+                      {alumnus.accountActive ? 'Active' : 'Suspended'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busyId === alumnus.ownerUid}
+                      onClick={() =>
+                        void handleAccountStatus(alumnus.ownerUid, !alumnus.accountActive)
+                      }
+                      className="mt-1 block w-full text-[11px] font-medium text-red-700 underline disabled:opacity-50"
+                    >
+                      {alumnus.accountActive ? 'Suspend' : 'Reactivate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {rejectedList.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-stone-500">
+                    No rejected alumni accounts.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold text-[#18221D]">
             Verified Alumni Registry ({verifiedList.length})
@@ -481,6 +627,7 @@ export function AdminDashboardView({
                 <th className="px-4 py-3 font-semibold">Role &amp; Company</th>
                 <th className="px-4 py-3 font-semibold">Batch &amp; USN</th>
                 <th className="px-4 py-3 font-semibold">Domain</th>
+                <th className="px-4 py-3 font-semibold">Contact</th>
                 <th className="px-4 py-3 font-semibold text-right">Guides</th>
                 <th className="px-4 py-3 font-semibold text-right">Status</th>
               </tr>
@@ -489,7 +636,7 @@ export function AdminDashboardView({
               {verifiedList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-xs text-stone-500"
                   >
                     No verified alumni yet. Approve profiles above or import responses from your Senior Intake Google Form.
@@ -511,20 +658,271 @@ export function AdminDashboardView({
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap">
                       {a.domain}
                     </td>
+                    <td className="px-4 py-3 text-stone-600 whitespace-nowrap">
+                      {a.contact?.email || '—'}
+                      {a.contact?.phone && <p>{a.contact.phone}</p>}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono text-stone-700 tabular-nums">
                       {a.sharedProjectGuidesCount}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-                        <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                        Verified
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                          <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                          Verified
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busyId === a.ownerUid}
+                          onClick={() =>
+                            void handleAccountStatus(a.ownerUid, !a.accountActive)
+                          }
+                          className="text-[11px] font-medium text-red-700 underline disabled:opacity-50"
+                        >
+                          {a.accountActive ? 'Suspend account' : 'Reactivate account'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-base font-semibold text-[#18221D]">
+            Student Directory ({allStudents.length})
+          </h2>
+          <span className="text-xs text-stone-600">
+            {unmatchedStudents.length} students without an accepted mentorship
+          </span>
+        </div>
+        {detailError && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {detailError}
+          </p>
+        )}
+        <div className="overflow-x-auto rounded-xl border border-[#E5DFD0] bg-[#FFFEFA]">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-[#E5DFD0] bg-[#F3EFE4] text-stone-700">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Student / Academic</th>
+                <th className="px-4 py-3 font-semibold">Domain &amp; Skills</th>
+                <th className="px-4 py-3 font-semibold">Mentorship Goals</th>
+                <th className="px-4 py-3 font-semibold">Links / Resume</th>
+                <th className="px-4 py-3 font-semibold">Registered</th>
+                <th className="px-4 py-3 font-semibold">Account</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EEE9DC]">
+              {allStudents.map(({ profile, registeredAt, accountActive }) => (
+                <tr key={profile.id} className="align-top hover:bg-[#FAF7F0]">
+                  <td className="px-4 py-3 text-stone-700">
+                    <p className="font-semibold text-[#18221D]">{profile.name}</p>
+                    <p>{profile.email}</p>
+                    <p className="mt-1 font-mono">{profile.usn}</p>
+                    <p>Sem {profile.semester} · {profile.branch}</p>
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    <p>{profile.targetDomain}</p>
+                    <p className="mt-1 max-w-xs text-stone-500">
+                      {profile.targetSkills.join(' · ') || 'No skills listed'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {[...profile.mentorshipGoals, profile.customMentorshipGoal]
+                      .filter(Boolean)
+                      .join(' · ') || 'None specified'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col items-start gap-1">
+                      {profile.leetcodeUrl && (
+                        <a href={profile.leetcodeUrl} target="_blank" rel="noreferrer" className="text-emerald-800 underline">LeetCode</a>
+                      )}
+                      {profile.githubUrl && (
+                        <a href={profile.githubUrl} target="_blank" rel="noreferrer" className="text-emerald-800 underline">GitHub</a>
+                      )}
+                      {profile.linkedinUrl && (
+                        <a href={profile.linkedinUrl} target="_blank" rel="noreferrer" className="text-emerald-800 underline">LinkedIn</a>
+                      )}
+                      {profile.resumeFileName && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleResumeDownload(() =>
+                              onDownloadStudentResume(profile.id),
+                            )
+                          }
+                          className="text-emerald-800 underline"
+                        >
+                          Resume: {profile.resumeFileName}
+                        </button>
+                      )}
+                      {!profile.leetcodeUrl &&
+                        !profile.githubUrl &&
+                        !profile.linkedinUrl &&
+                        !profile.resumeFileName && (
+                          <span className="text-stone-500">No links or resume</span>
+                        )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-stone-600">
+                    {registeredAt.slice(0, 10)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <span
+                      className={
+                        accountActive
+                          ? 'text-emerald-800'
+                          : 'font-medium text-red-700'
+                      }
+                    >
+                      {accountActive ? 'Active' : 'Suspended'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busyId === profile.id}
+                      onClick={() =>
+                        void handleAccountStatus(profile.id, !accountActive)
+                      }
+                      className="mt-1 block w-full text-[11px] font-medium text-red-700 underline disabled:opacity-50"
+                    >
+                      {accountActive ? 'Suspend' : 'Reactivate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {allStudents.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-stone-500">
+                    No student profiles found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-semibold text-[#18221D]">
+          Mentorship Activity ({mentorships.length})
+        </h2>
+        <div className="overflow-x-auto rounded-xl border border-[#E5DFD0] bg-[#FFFEFA]">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-[#E5DFD0] bg-[#F3EFE4] text-stone-700">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Student</th>
+                <th className="px-4 py-3 font-semibold">Alumni</th>
+                <th className="px-4 py-3 font-semibold">Goal</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EEE9DC]">
+              {mentorships.slice(0, 50).map((request) => (
+                <tr key={request.id} className="hover:bg-[#FAF7F0]">
+                  <td className="px-4 py-3 text-stone-700">
+                    {request.studentName} · {request.studentUsn}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {request.alumniName} · {request.alumniCompany}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">{request.goal}</td>
+                  <td className="px-4 py-3 capitalize text-stone-700">{request.status}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-stone-600">
+                    {request.createdAt.slice(0, 10)}
+                  </td>
+                </tr>
+              ))}
+              {mentorships.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-stone-500">
+                    No mentorship activity recorded.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-semibold text-[#18221D]">
+          Opportunity Applications ({applications.length})
+        </h2>
+        <div className="space-y-2">
+          {applications.map((application) => (
+            <article
+              key={application.id}
+              className="flex flex-col gap-3 rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p className="text-sm font-semibold text-[#18221D]">
+                  {application.studentName} · {application.opportunityTitle}
+                </p>
+                <p className="text-xs text-stone-600">
+                  {application.studentEmail} · {application.studentBranch} · {application.resumeFileName}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-[#E5DFD0] px-2.5 py-1 text-xs capitalize text-stone-700">
+                  {application.status}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleResumeDownload(() =>
+                      onDownloadApplicationResume(application.id),
+                    )
+                  }
+                  className="rounded-lg border border-[#E5DFD0] px-3 py-1.5 text-xs font-medium text-stone-700"
+                >
+                  View Resume
+                </button>
+                {application.status !== 'accepted' &&
+                  application.status !== 'declined' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleApplicationStatus(application.id, 'reviewed')
+                        }
+                        className="rounded-lg border border-[#E5DFD0] px-3 py-1.5 text-xs font-medium text-stone-700"
+                      >
+                        Mark Reviewed
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleApplicationStatus(application.id, 'accepted')
+                        }
+                        className="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleApplicationStatus(application.id, 'declined')
+                        }
+                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700"
+                      >
+                        Decline
+                      </button>
+                    </>
+                  )}
+              </div>
+            </article>
+          ))}
+          {applications.length === 0 && (
+            <p className="rounded-xl border border-[#E5DFD0] bg-[#FFFEFA] px-5 py-6 text-center text-xs text-stone-500">
+              No opportunity applications yet.
+            </p>
+          )}
         </div>
       </section>
     </div>

@@ -11,12 +11,17 @@ import type {
   BranchCode,
   FormResponsePreview,
   MentorshipGoal,
+  OpportunityApplication,
   OpportunityType,
   UserRole,
 } from './src/types/index.ts';
 import { checkDatabaseHealth } from './server/db/client.ts';
 import { sendParthaEmail } from './server/email.ts';
-import { postgresStore, StoreError } from './server/postgresStore.ts';
+import {
+  postgresStore,
+  StoreError,
+  type StoredResume,
+} from './server/postgresStore.ts';
 import { createRateLimiter } from './server/rateLimit.ts';
 import { parsePagination } from './server/validation.ts';
 
@@ -165,6 +170,8 @@ async function startServer() {
         semester?: number;
         targetSkills?: string[];
         targetDomain?: string;
+        mentorshipGoals?: string[];
+        customMentorshipGoal?: string;
         password?: string;
       };
 
@@ -176,6 +183,10 @@ async function startServer() {
         semester: body.semester ?? 6,
         targetSkills: Array.isArray(body.targetSkills) ? body.targetSkills : ['Python'],
         targetDomain: body.targetDomain ?? 'Machine Learning & AI',
+        mentorshipGoals: Array.isArray(body.mentorshipGoals)
+          ? body.mentorshipGoals
+          : [],
+        customMentorshipGoal: body.customMentorshipGoal ?? '',
         password: body.password ?? '',
       });
       res.status(201).json(session);
@@ -309,6 +320,46 @@ async function startServer() {
         req.body ?? {},
       );
       res.json(updatedUser.studentProfile);
+    }),
+  );
+
+  app.post(
+    '/api/student-profile/resume',
+    requireAuth(['student']),
+    writeLimiter,
+    express.raw({ type: 'application/pdf', limit: '2mb' }),
+    asyncRoute(async (req, res) => {
+      if (!Buffer.isBuffer(req.body)) {
+        res.status(400).json({ error: 'Upload a PDF resume.' });
+        return;
+      }
+      const saved = await postgresStore.saveStudentResume(
+        req.user!.id,
+        String(req.query.filename ?? ''),
+        req.body,
+      );
+      res.json(saved);
+    }),
+  );
+
+  app.get(
+    '/api/student-profile/resume',
+    requireAuth(['student']),
+    asyncRoute(async (req, res) => {
+      const resume = await postgresStore.getStudentResume(req.user!.id, req.user!);
+      sendPdf(res, resume);
+    }),
+  );
+
+  app.get(
+    '/api/admin/students/:id/resume',
+    requireAuth(['admin']),
+    asyncRoute(async (req, res) => {
+      const resume = await postgresStore.getStudentResume(
+        String(req.params.id),
+        req.user!,
+      );
+      sendPdf(res, resume);
     }),
   );
 
@@ -648,6 +699,68 @@ async function startServer() {
     }),
   );
 
+  app.post(
+    '/api/opportunities/:id/applications',
+    requireAuth(['student']),
+    writeLimiter,
+    express.raw({ type: 'application/pdf', limit: '2mb' }),
+    asyncRoute(async (req, res) => {
+      if (!Buffer.isBuffer(req.body)) {
+        res.status(400).json({ error: 'Upload a PDF resume to apply.' });
+        return;
+      }
+      const application = await postgresStore.submitOpportunityApplication(
+        req.user!,
+        String(req.params.id),
+        String(req.query.filename ?? ''),
+        req.body,
+      );
+      res.status(201).json(application);
+    }),
+  );
+
+  app.get(
+    '/api/opportunity-applications',
+    requireAuth(['student', 'alumni', 'admin']),
+    asyncRoute(async (req, res) => {
+      const applications = await postgresStore.listOpportunityApplications(
+        req.user!,
+      );
+      res.json(applications);
+    }),
+  );
+
+  app.get(
+    '/api/opportunity-applications/:id/resume',
+    requireAuth(['student', 'alumni', 'admin']),
+    asyncRoute(async (req, res) => {
+      const resume = await postgresStore.getOpportunityApplicationResume(
+        String(req.params.id),
+        req.user!,
+      );
+      sendPdf(res, resume);
+    }),
+  );
+
+  app.patch(
+    '/api/opportunity-applications/:id',
+    requireAuth(['alumni', 'admin']),
+    writeLimiter,
+    asyncRoute(async (req, res) => {
+      const body = req.body as { status?: OpportunityApplication['status'] };
+      if (!body.status) {
+        res.status(400).json({ error: 'Application status is required.' });
+        return;
+      }
+      const application = await postgresStore.updateOpportunityApplicationStatus(
+        String(req.params.id),
+        req.user!,
+        body.status,
+      );
+      res.json(application);
+    }),
+  );
+
   app.get(
     '/api/guides',
     requireAuth(),
@@ -793,6 +906,33 @@ async function startServer() {
     }),
   );
 
+  app.get(
+    '/api/admin/students',
+    requireAuth(['admin']),
+    asyncRoute(async (_req, res) => {
+      const students = await postgresStore.getAdminStudentProfiles();
+      res.json(students);
+    }),
+  );
+
+  app.patch(
+    '/api/admin/users/:id/status',
+    requireAuth(['admin']),
+    writeLimiter,
+    asyncRoute(async (req, res) => {
+      const body = req.body as { isActive?: unknown };
+      if (typeof body.isActive !== 'boolean') {
+        throw new StoreError(400, 'Account status must be true or false.');
+      }
+      const result = await postgresStore.setAccountActive(
+        String(req.params.id),
+        body.isActive,
+        req.user!,
+      );
+      res.json(result);
+    }),
+  );
+
   app.all('/api/*', (_req, res) => {
     res.status(404).json({ error: 'API route not found.' });
   });
@@ -806,6 +946,22 @@ async function startServer() {
 
     if (err instanceof StoreError) {
       res.status(err.status).json({ error: err.message });
+      return;
+    }
+
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      'status' in err &&
+      typeof err.status === 'number' &&
+      err.status >= 400 &&
+      err.status < 500
+    ) {
+      const message =
+        err.status === 413
+          ? 'Uploaded PDF exceeds the 2 MB size limit.'
+          : 'Invalid request payload.';
+      res.status(err.status).json({ error: message });
       return;
     }
 
@@ -848,6 +1004,14 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`PARTHA server running at http://localhost:${PORT}`);
   });
+}
+
+function sendPdf(res: Response, resume: StoredResume): void {
+  const safeFileName = resume.fileName.replace(/["\\]/g, '_');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.send(resume.fileData);
 }
 
 startServer().catch((err) => {

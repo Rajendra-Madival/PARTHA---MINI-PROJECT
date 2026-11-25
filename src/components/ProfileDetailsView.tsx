@@ -7,23 +7,19 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
+import { parthaApi } from '../services/api';
 import type {
   AlumniProfile,
   AuthUser,
   BranchCode,
   StudentTargetProfile,
 } from '../types';
+import { DomainSelect } from './DomainSelect';
 import { ProfileAvatarEditor } from './ProfileAvatarEditor';
+import { SkillPicker } from './SkillPicker';
+import { DOMAINS, MENTORSHIP_GOALS } from './profileOptions';
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
-const DOMAINS = [
-  'Machine Learning & AI',
-  'Cloud & Distributed Systems',
-  'Full-Stack & FinTech',
-  'Embedded & Robotics',
-  'Data Engineering',
-  'Cybersecurity & Infra',
-];
 
 interface ProfileDetailsViewProps {
   user: AuthUser;
@@ -73,11 +69,20 @@ export function ProfileDetailsView({
   const [stuBranch, setStuBranch] = useState<BranchCode>(studentProfile.branch);
   const [stuSemester, setStuSemester] = useState(studentProfile.semester);
   const [stuDomain, setStuDomain] = useState(studentProfile.targetDomain);
-  const [stuSkills, setStuSkills] = useState(
-    studentProfile.targetSkills.join(', '),
+  const [stuSkills, setStuSkills] = useState(studentProfile.targetSkills);
+  const [stuGoals, setStuGoals] = useState(studentProfile.mentorshipGoals);
+  const [stuCustomGoal, setStuCustomGoal] = useState(
+    studentProfile.customMentorshipGoal,
   );
+  const [stuGithubUrl, setStuGithubUrl] = useState(studentProfile.githubUrl ?? '');
+  const [stuLinkedinUrl, setStuLinkedinUrl] = useState(
+    studentProfile.linkedinUrl ?? '',
+  );
+  const [stuLeetcodeUrl, setStuLeetcodeUrl] = useState(
+    studentProfile.leetcodeUrl ?? '',
+  );
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [stuCompany, setStuCompany] = useState(studentProfile.targetCompany);
-  const [stuResumeUrl, setStuResumeUrl] = useState(studentProfile.resumeUrl ?? '');
   const [stuInternship, setStuInternship] = useState(
     studentProfile.lookingForInternship,
   );
@@ -140,9 +145,13 @@ export function ProfileDetailsView({
     setStuBranch(studentProfile.branch);
     setStuSemester(studentProfile.semester);
     setStuDomain(studentProfile.targetDomain || DOMAINS[0]);
-    setStuSkills(studentProfile.targetSkills.join(', '));
+    setStuSkills(studentProfile.targetSkills);
+    setStuGoals(studentProfile.mentorshipGoals ?? []);
+    setStuCustomGoal(studentProfile.customMentorshipGoal ?? '');
+    setStuGithubUrl(studentProfile.githubUrl ?? '');
+    setStuLinkedinUrl(studentProfile.linkedinUrl ?? '');
+    setStuLeetcodeUrl(studentProfile.leetcodeUrl ?? '');
     setStuCompany(studentProfile.targetCompany);
-    setStuResumeUrl(studentProfile.resumeUrl ?? '');
     setStuInternship(studentProfile.lookingForInternship);
     setStuProjectHelp(studentProfile.lookingForProjectHelp);
   }, [studentProfile, user.name]);
@@ -186,19 +195,19 @@ export function ProfileDetailsView({
     setError(null);
     setSaving(true);
     try {
-      const parsedSkills = stuSkills
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
       await onSaveStudent({
         name: stuName.trim(),
         usn: stuUsn.trim().toUpperCase(),
         branch: stuBranch,
         semester: stuSemester,
         targetDomain: stuDomain,
-        targetSkills: parsedSkills.length > 0 ? parsedSkills : ['Python'],
+        targetSkills: stuSkills,
+        mentorshipGoals: stuGoals,
+        customMentorshipGoal: stuGoals.includes('Other') ? stuCustomGoal : '',
         targetCompany: stuCompany.trim(),
-        resumeUrl: stuResumeUrl.trim(),
+        githubUrl: stuGithubUrl.trim(),
+        linkedinUrl: stuLinkedinUrl.trim(),
+        leetcodeUrl: stuLeetcodeUrl.trim(),
         lookingForInternship: stuInternship,
         lookingForProjectHelp: stuProjectHelp,
       });
@@ -300,7 +309,7 @@ export function ProfileDetailsView({
     user.role === 'student'
       ? 'Student Profile & Learning Goals'
       : user.role === 'alumni'
-        ? 'Alumni Mentor Profile & Private Contact'
+        ? 'Alumni Profile & Private Contact'
         : 'Placement Cell Admin Details';
 
   return (
@@ -341,7 +350,7 @@ export function ProfileDetailsView({
               <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             )}
             {alumniProfile.verificationStatus === 'verified'
-              ? 'Verified Mentor'
+              ? 'Verified Alumni'
               : 'Pending Verification'}
           </span>
         )}
@@ -446,17 +455,12 @@ export function ProfileDetailsView({
               <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Target Career Domain
               </label>
-              <select
+              <DomainSelect
+                id="student-profile-domain"
                 value={stuDomain}
-                onChange={(e) => setStuDomain(e.target.value)}
+                onChange={setStuDomain}
                 className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
-              >
-                {DOMAINS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
@@ -474,29 +478,172 @@ export function ProfileDetailsView({
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Resume / Portfolio URL (optional)
+                Skills You Want to Learn
               </label>
-              <input
-                type="url"
-                value={stuResumeUrl}
-                onChange={(e) => setStuResumeUrl(e.target.value)}
-                placeholder="https://drive.google.com/... or https://github.com/..."
+              <SkillPicker
+                id="student-profile-skills"
+                skills={stuSkills}
+                onChange={setStuSkills}
                 className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
               />
             </div>
 
+            <div className="sm:col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  LeetCode URL
+                </label>
+                <input
+                  type="url"
+                  value={stuLeetcodeUrl}
+                  onChange={(e) => setStuLeetcodeUrl(e.target.value)}
+                  placeholder="https://leetcode.com/username"
+                  className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  GitHub URL
+                </label>
+                <input
+                  type="url"
+                  value={stuGithubUrl}
+                  onChange={(e) => setStuGithubUrl(e.target.value)}
+                  placeholder="https://github.com/username"
+                  className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  LinkedIn URL
+                </label>
+                <input
+                  type="url"
+                  value={stuLinkedinUrl}
+                  onChange={(e) => setStuLinkedinUrl(e.target.value)}
+                  placeholder="https://linkedin.com/in/username"
+                  className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                />
+              </div>
+            </div>
+
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Skills You Want to Learn (comma-separated)
+                Resume PDF (max 2 MB)
               </label>
               <input
-                type="text"
-                value={stuSkills}
-                onChange={(e) => setStuSkills(e.target.value)}
-                placeholder="Python, Machine Learning, React"
-                className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  if (
+                    file &&
+                    ((file.type && file.type !== 'application/pdf') ||
+                      !/\.pdf$/i.test(file.name) ||
+                      file.size === 0 ||
+                      file.size > 2 * 1024 * 1024)
+                  ) {
+                    setError('Choose a non-empty PDF file up to 2 MB.');
+                    event.target.value = '';
+                    setResumeFile(null);
+                    return;
+                  }
+                  setError(null);
+                  setResumeFile(file);
+                }}
+                className="block w-full text-xs text-stone-700 file:mr-3 file:rounded-md file:border file:border-[#E5DFD0] file:bg-[#FAF7F0] file:px-3 file:py-1.5 file:text-xs"
               />
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-stone-500">
+                <span>{resumeFile?.name ?? studentProfile.resumeFileName ?? 'No resume uploaded'}</span>
+                {studentProfile.resumeFileName && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const blob = await parthaApi.getStudentResume();
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = studentProfile.resumeFileName ?? 'resume.pdf';
+                        link.click();
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        setError(
+                          err instanceof Error ? err.message : 'Unable to download resume.',
+                        );
+                      }
+                    }}
+                    className="font-semibold text-emerald-800 underline"
+                  >
+                    Download current resume
+                  </button>
+                )}
+              </div>
+              {resumeFile && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    setError(null);
+                    setSaving(true);
+                    try {
+                      await parthaApi.uploadStudentResume(resumeFile);
+                      await onSaveStudent({});
+                      setResumeFile(null);
+                      markSaved();
+                    } catch (err) {
+                      setError(
+                        err instanceof Error ? err.message : 'Unable to upload resume.',
+                      );
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className="mt-2 rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-900 disabled:opacity-60"
+                >
+                  Upload / Replace Resume
+                </button>
+              )}
             </div>
+
+            <fieldset className="sm:col-span-2 space-y-2 border-t border-[#EEE9DC] pt-4">
+              <legend className="text-xs font-semibold text-stone-700">
+                Select Your Mentorship Goals
+              </legend>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {MENTORSHIP_GOALS.map((goal) => (
+                  <label
+                    key={goal}
+                    className="inline-flex items-center gap-2 text-xs text-stone-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={stuGoals.includes(goal)}
+                      onChange={(event) =>
+                        setStuGoals((current) =>
+                          event.target.checked
+                            ? [...current, goal]
+                            : current.filter((item) => item !== goal),
+                        )
+                      }
+                      className="h-3.5 w-3.5 accent-emerald-800"
+                    />
+                    {goal}
+                  </label>
+                ))}
+              </div>
+              {stuGoals.includes('Other') && (
+                <input
+                  type="text"
+                  required
+                  maxLength={240}
+                  value={stuCustomGoal}
+                  onChange={(event) => setStuCustomGoal(event.target.value)}
+                  placeholder="Describe your mentorship requirement"
+                  className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3.5 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+                />
+              )}
+            </fieldset>
           </div>
 
           <div className="flex flex-wrap items-center gap-6 border-t border-[#EEE9DC] pt-4 text-xs text-stone-700">
@@ -537,7 +684,7 @@ export function ProfileDetailsView({
           <ProfileAvatarEditor
             displayName={aluName || user.name}
             avatarUrl={aluAvatarUrl}
-            roleLabel="Alumni Mentor"
+            roleLabel="Alumni"
             onSaveAvatar={handleSaveAlumniAvatar}
           />
 

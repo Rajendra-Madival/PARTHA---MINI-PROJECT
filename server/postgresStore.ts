@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   AdminBootstrapStatus,
   AdminMetrics,
+  AdminStudentRecord,
   AlumniContact,
   AlumniDiscoveryResponse,
   AlumniProfile,
@@ -16,6 +17,7 @@ import type {
   MentorshipMessage,
   MentorshipRequest,
   MentorshipSessionBooking,
+  OpportunityApplication,
   OpportunitiesPaginatedResponse,
   Opportunity,
   OpportunityType,
@@ -37,10 +39,12 @@ import {
   mentorshipRequests,
   mentorshipSessions,
   notifications,
+  opportunityApplications,
   opportunities,
   passwordResets,
   seniorIntakeForms,
   studentProfiles,
+  studentResumes,
   userBookmarks,
   users,
 } from './db/schema.ts';
@@ -64,6 +68,11 @@ export class StoreError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+export interface StoredResume {
+  fileName: string;
+  fileData: Buffer;
 }
 
 function requireDb() {
@@ -115,6 +124,7 @@ function formatMessageTime(date: Date): string {
 
 function computeServerMatchScore(
   alumni: {
+    branch: string;
     skills: string[];
     company: string;
     role: string;
@@ -168,8 +178,26 @@ function computeServerMatchScore(
     score += 18;
   }
 
+  const goals = new Set(student.mentorshipGoals.map((goal) => goal.toLowerCase()));
+  if (
+    goals.has('career guidance & referrals') &&
+    alumni.openToInternshipReferrals
+  ) {
+    score += 8;
+  }
+  if (
+    student.mentorshipGoals.some((goal) =>
+      ['resume review', 'project review', 'interview preparation', 'technical guidance']
+        .includes(goal.toLowerCase()),
+    ) &&
+    alumni.openToProjectMentoring
+  ) {
+    score += 6;
+  }
+
   if (student.lookingForInternship && alumni.openToInternshipReferrals) score += 5;
   if (student.lookingForProjectHelp && alumni.openToProjectMentoring) score += 4;
+  if (alumni.branch === student.branch) score += 3;
   if (alumni.sharedProjectGuidesCount > 0) {
     score += Math.min(10, alumni.sharedProjectGuidesCount * 3);
   }
@@ -303,7 +331,7 @@ class PostgresParthaStore {
       .where(eq(users.id, userId))
       .limit(1);
     const u = userRows[0];
-    if (!u) return null;
+    if (!u || !u.isActive) return null;
 
     const effectiveRole = (role ?? u.role) as UserRole;
     if (effectiveRole !== u.role) return null;
@@ -324,8 +352,11 @@ class PostgresParthaStore {
         semester: sp?.semester ?? 6,
         targetSkills: sp?.targetSkills ?? ['Python'],
         targetDomain: sp?.targetDomain ?? 'Machine Learning & AI',
+        mentorshipGoals: sp?.mentorshipGoals ?? [],
+        customMentorshipGoal: sp?.customMentorshipGoal ?? '',
         targetCompany: sp?.targetCompany ?? '',
         resumeUrl: sp?.resumeUrl ?? '',
+        resumeFileName: sp?.resumeFileName ?? '',
         resumeText: sp?.resumeText ?? '',
         githubUrl: sp?.githubUrl ?? '',
         linkedinUrl: sp?.linkedinUrl ?? '',
@@ -339,6 +370,7 @@ class PostgresParthaStore {
         role: 'student',
         name: u.name,
         email: u.email,
+        isActive: u.isActive,
         subtitle: u.subtitle || `Sem ${studentProfile.semester} ${studentProfile.branch}`,
         branch: studentProfile.branch,
         avatarUrl: sp?.avatarUrl || undefined,
@@ -358,6 +390,7 @@ class PostgresParthaStore {
         role: 'alumni',
         name: u.name,
         email: u.email,
+        isActive: u.isActive,
         subtitle:
           a
             ? `${a.role}, ${a.company} · ${a.graduationYear} ${a.branch}`
@@ -373,6 +406,7 @@ class PostgresParthaStore {
       role: 'admin',
       name: u.name,
       email: u.email,
+      isActive: u.isActive,
       subtitle: u.subtitle || 'Placement & Alumni Cell · KLS VDIT',
       branch: normalizeBranch(u.branch),
       isAdminAccount: true,
@@ -428,6 +462,15 @@ class PostgresParthaStore {
         throw new StoreError(401, 'Invalid Student email/USN or password.');
       }
 
+      const activeRows = await db
+        .select({ isActive: users.isActive })
+        .from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1);
+      if (!activeRows[0]?.isActive) {
+        throw new StoreError(403, 'This Student account is suspended. Contact an administrator.');
+      }
+
       const authUser = await this.getAuthUserById(targetUserId, 'student');
       if (!authUser) throw new StoreError(401, 'Student account not found.');
       return { token: this.signToken(targetUserId, 'student'), user: authUser };
@@ -467,6 +510,15 @@ class PostgresParthaStore {
 
       if (!targetUserId) {
         throw new StoreError(401, 'Invalid Alumni email/USN or password.');
+      }
+
+      const activeRows = await db
+        .select({ isActive: users.isActive })
+        .from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1);
+      if (!activeRows[0]?.isActive) {
+        throw new StoreError(403, 'This Alumni account is suspended. Contact an administrator.');
       }
 
       const authUser = await this.getAuthUserById(targetUserId, 'alumni');
@@ -512,6 +564,8 @@ class PostgresParthaStore {
     semester: number;
     targetSkills: string[];
     targetDomain: string;
+    mentorshipGoals?: string[];
+    customMentorshipGoal?: string;
     resumeText?: string;
     githubUrl?: string;
     linkedinUrl?: string;
@@ -528,10 +582,19 @@ class PostgresParthaStore {
     const semester = Math.min(8, Math.max(1, Math.round(Number(input.semester) || 6)));
     const skills = normalizeStringArray(input.targetSkills, 15, 40);
     const targetDomain = clampText(input.targetDomain, 100) || 'Machine Learning & AI';
+    const mentorshipGoals = normalizeStringArray(input.mentorshipGoals ?? [], 8, 80);
+    const customMentorshipGoal = clampText(input.customMentorshipGoal ?? '', 240);
     const resumeText = clampText(input.resumeText ?? '', 5000);
-    const githubUrl = input.githubUrl ? (validateSafeHttpUrl(input.githubUrl) ?? '') : '';
-    const linkedinUrl = input.linkedinUrl ? (validateSafeHttpUrl(input.linkedinUrl) ?? '') : '';
-    const leetcodeUrl = input.leetcodeUrl ? (validateSafeHttpUrl(input.leetcodeUrl) ?? '') : '';
+    const githubUrl = validateSafeHttpUrl(input.githubUrl ?? '');
+    const linkedinUrl = validateSafeHttpUrl(input.linkedinUrl ?? '');
+    const leetcodeUrl = validateSafeHttpUrl(input.leetcodeUrl ?? '');
+
+    if (githubUrl === null || linkedinUrl === null || leetcodeUrl === null) {
+      throw new StoreError(400, 'Professional profile links must use http:// or https://.');
+    }
+    if (mentorshipGoals.includes('Other') && !customMentorshipGoal) {
+      throw new StoreError(400, 'Describe your custom mentorship goal.');
+    }
 
     if (!name || !email || !isValidEmail(email) || !usn || !input.password || input.password.length < 4) {
       throw new StoreError(
@@ -575,6 +638,8 @@ class PostgresParthaStore {
         semester,
         targetSkills: skills.length > 0 ? skills : ['Python', 'Machine Learning'],
         targetDomain,
+        mentorshipGoals,
+        customMentorshipGoal,
         targetCompany: '',
         resumeUrl: '',
         resumeText,
@@ -840,6 +905,18 @@ class PostgresParthaStore {
       typeof updates.usn === 'string'
         ? clampText(updates.usn, 40).toUpperCase()
         : existingSp?.usn ?? '';
+    if (nextUsn) {
+      const duplicateUsn = await db
+        .select({ userId: studentProfiles.userId })
+        .from(studentProfiles)
+        .where(
+          sql`UPPER(${studentProfiles.usn}) = ${nextUsn} AND ${studentProfiles.userId} <> ${studentId}`,
+        )
+        .limit(1);
+      if (duplicateUsn.length > 0) {
+        throw new StoreError(409, 'A student account with this USN already exists.');
+      }
+    }
     const nextBranch = updates.branch
       ? normalizeBranch(updates.branch)
       : normalizeBranch(existingSp?.branch ?? currentRows[0].branch);
@@ -854,6 +931,16 @@ class PostgresParthaStore {
       typeof updates.targetDomain === 'string'
         ? clampText(updates.targetDomain, 100) || 'Machine Learning & AI'
         : existingSp?.targetDomain ?? 'Machine Learning & AI';
+    const nextMentorshipGoals = Array.isArray(updates.mentorshipGoals)
+      ? normalizeStringArray(updates.mentorshipGoals, 8, 80)
+      : existingSp?.mentorshipGoals ?? [];
+    const nextCustomMentorshipGoal =
+      typeof updates.customMentorshipGoal === 'string'
+        ? clampText(updates.customMentorshipGoal, 240)
+        : existingSp?.customMentorshipGoal ?? '';
+    if (nextMentorshipGoals.includes('Other') && !nextCustomMentorshipGoal) {
+      throw new StoreError(400, 'Describe your custom mentorship goal.');
+    }
     const nextCompany =
       typeof updates.targetCompany === 'string'
         ? clampText(updates.targetCompany, 100)
@@ -873,17 +960,20 @@ class PostgresParthaStore {
         : existingSp?.resumeText ?? '';
     const nextGithubUrl =
       typeof updates.githubUrl === 'string'
-        ? validateSafeHttpUrl(updates.githubUrl) ?? ''
+        ? validateSafeHttpUrl(updates.githubUrl)
         : existingSp?.githubUrl ?? '';
     const nextLinkedinUrl =
       typeof updates.linkedinUrl === 'string'
-        ? validateSafeHttpUrl(updates.linkedinUrl) ?? ''
+        ? validateSafeHttpUrl(updates.linkedinUrl)
         : existingSp?.linkedinUrl ?? '';
     const nextLeetcodeUrl =
       typeof updates.leetcodeUrl === 'string'
-        ? validateSafeHttpUrl(updates.leetcodeUrl) ?? ''
+        ? validateSafeHttpUrl(updates.leetcodeUrl)
         : existingSp?.leetcodeUrl ?? '';
 
+    if (nextGithubUrl === null || nextLinkedinUrl === null || nextLeetcodeUrl === null) {
+      throw new StoreError(400, 'Professional profile links must use http:// or https://.');
+    }
     const nextAvatarUrl =
       typeof updates.avatarUrl === 'string'
         ? validateSafeAvatarUrl(updates.avatarUrl)
@@ -922,6 +1012,8 @@ class PostgresParthaStore {
           semester: nextSemester,
           targetSkills: nextSkills.length > 0 ? nextSkills : ['Python'],
           targetDomain: nextDomain,
+          mentorshipGoals: nextMentorshipGoals,
+          customMentorshipGoal: nextCustomMentorshipGoal,
           targetCompany: nextCompany,
           resumeUrl: nextResumeUrl,
           resumeText: nextResumeText,
@@ -941,6 +1033,8 @@ class PostgresParthaStore {
             semester: nextSemester,
             targetSkills: nextSkills.length > 0 ? nextSkills : ['Python'],
             targetDomain: nextDomain,
+            mentorshipGoals: nextMentorshipGoals,
+            customMentorshipGoal: nextCustomMentorshipGoal,
             targetCompany: nextCompany,
             resumeUrl: nextResumeUrl,
             resumeText: nextResumeText,
@@ -958,6 +1052,74 @@ class PostgresParthaStore {
     const refreshed = await this.getAuthUserById(studentId, 'student');
     if (!refreshed) throw new StoreError(404, 'Student profile not found.');
     return refreshed;
+  }
+
+  async saveStudentResume(
+    studentId: string,
+    fileName: string,
+    fileData: Buffer,
+  ): Promise<{ fileName: string }> {
+    await ensureDatabaseSchema();
+    const db = requireDb();
+    const safeName = fileName
+      .replace(/[\\/\u0000-\u001f\u007f]/g, '_')
+      .trim()
+      .slice(0, 120);
+    if (!safeName || fileData.length < 5 || fileData.subarray(0, 5).toString() !== '%PDF-') {
+      throw new StoreError(400, 'Please upload a valid PDF resume.');
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(studentResumes)
+        .values({
+          userId: studentId,
+          fileName: safeName,
+          fileData,
+          extractedData: {},
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: studentResumes.userId,
+          set: {
+            fileName: safeName,
+            fileData,
+            extractedData: {},
+            updatedAt: new Date(),
+          },
+        });
+      await tx
+        .update(studentProfiles)
+        .set({
+          resumeFileName: safeName,
+          resumeUrl: '/api/student-profile/resume',
+          updatedAt: new Date(),
+        })
+        .where(eq(studentProfiles.userId, studentId));
+    });
+
+    return { fileName: safeName };
+  }
+
+  async getStudentResume(
+    studentId: string,
+    viewer: AuthUser,
+  ): Promise<StoredResume> {
+    await ensureDatabaseSchema();
+    if (viewer.role !== 'admin' && viewer.id !== studentId) {
+      throw new StoreError(403, 'You are not allowed to access this resume.');
+    }
+    const db = requireDb();
+    const rows = await db
+      .select({
+        fileName: studentResumes.fileName,
+        fileData: studentResumes.fileData,
+      })
+      .from(studentResumes)
+      .where(eq(studentResumes.userId, studentId))
+      .limit(1);
+    if (!rows[0]) throw new StoreError(404, 'No resume has been uploaded.');
+    return rows[0];
   }
 
   async updateAlumniDetails(
@@ -1011,6 +1173,18 @@ class PostgresParthaStore {
       .where(eq(alumniProfiles.ownerUid, alumniUser.id))
       .limit(1);
     const targetAlumniId = existingRows[0]?.id ?? alumniUser.id;
+    if (cleanReg) {
+      const duplicateReg = await db
+        .select({ id: alumniProfiles.id })
+        .from(alumniProfiles)
+        .where(
+          sql`UPPER(${alumniProfiles.regNumber}) = ${cleanReg} AND ${alumniProfiles.id} <> ${targetAlumniId}`,
+        )
+        .limit(1);
+      if (duplicateReg.length > 0) {
+        throw new StoreError(409, 'An alumni account with this USN already exists.');
+      }
+    }
 
     let nextAvatarUrl: string | null = existingRows[0]?.avatarUrl ?? null;
     if (typeof payload.avatarUrl === 'string') {
@@ -1203,13 +1377,19 @@ class PostgresParthaStore {
 
     const showAllStatuses = Boolean(options.includeAll && viewer.role === 'admin');
     const allRows = await db.select().from(alumniProfiles);
+    const accountRows = await db
+      .select({ id: users.id, isActive: users.isActive })
+      .from(users)
+      .where(eq(users.role, 'alumni'));
+    const activeAccounts = new Map(accountRows.map((row) => [row.id, row.isActive]));
 
     const visibleBase = showAllStatuses
       ? allRows
       : allRows.filter(
           (a) =>
-            a.verificationStatus === 'verified' ||
-            (viewer.role === 'alumni' && a.ownerUid === viewer.id),
+            activeAccounts.get(a.ownerUid) === true &&
+            (a.verificationStatus === 'verified' ||
+              (viewer.role === 'alumni' && a.ownerUid === viewer.id)),
         );
 
     const guidesRows = await db.select().from(knowledgeGuides);
@@ -1229,7 +1409,11 @@ class PostgresParthaStore {
     }
 
     // Build facets across all verified profiles
-    const verifiedPool = allRows.filter((a) => a.verificationStatus === 'verified');
+    const verifiedPool = allRows.filter(
+      (a) =>
+        activeAccounts.get(a.ownerUid) === true &&
+        a.verificationStatus === 'verified',
+    );
     const skillSet = new Set<string>();
     const companySet = new Set<string>();
     const roleSet = new Set<string>();
@@ -1273,6 +1457,7 @@ class PostgresParthaStore {
     const domain = options.domain ?? 'All';
 
     const filtered = visibleBase.filter((a) => {
+      if (!showAllStatuses && activeAccounts.get(a.ownerUid) !== true) return false;
       if (!showAllStatuses && viewer.role === 'student' && a.verificationStatus !== 'verified') {
         return false;
       }
@@ -1322,6 +1507,8 @@ class PostgresParthaStore {
       semester: 6,
       targetSkills: ['Python', 'Machine Learning'],
       targetDomain: 'Machine Learning & AI',
+      mentorshipGoals: [],
+      customMentorshipGoal: '',
       targetCompany: '',
       resumeUrl: '',
       lookingForInternship: true,
@@ -1403,6 +1590,7 @@ class PostgresParthaStore {
       return {
         id: a.id,
         ownerUid: a.ownerUid,
+        accountActive: activeAccounts.get(a.ownerUid) === true,
         name: a.name,
         graduationYear: a.graduationYear,
         branch: normalizeBranch(a.branch),
@@ -2008,10 +2196,17 @@ class PostgresParthaStore {
     await ensureDatabaseSchema();
     const db = requireDb();
 
-    const allRows = await db
+    const [storedRows, accountRows] = await Promise.all([
+      db
       .select()
       .from(opportunities)
-      .orderBy(desc(opportunities.createdAt));
+      .orderBy(desc(opportunities.createdAt)),
+      db.select({ id: users.id, isActive: users.isActive }).from(users),
+    ]);
+    const activeAccounts = new Map(accountRows.map((row) => [row.id, row.isActive]));
+    const allRows = storedRows.filter(
+      (opportunity) => activeAccounts.get(opportunity.postedById) === true,
+    );
 
     const domainSet = new Set<string>();
     allRows.forEach((o) => domainSet.add(o.domain));
@@ -2134,7 +2329,7 @@ class PostgresParthaStore {
         stipendOrCtc: clampText(input.stipendOrCtc, 80) || 'Competitive',
         skills: normalizeStringArray(input.skills, 15, 40),
         description: clampText(input.description, 2000),
-        applyUrl: safeApplyUrl || 'https://careers.example.com',
+        applyUrl: safeApplyUrl || '',
         postedById: user.id,
         postedByAlumniId: alumniId,
         postedByName: user.name,
@@ -2164,6 +2359,206 @@ class PostgresParthaStore {
     };
   }
 
+  async submitOpportunityApplication(
+    student: AuthUser,
+    opportunityId: string,
+    fileName: string,
+    resumeData: Buffer,
+  ): Promise<OpportunityApplication> {
+    await ensureDatabaseSchema();
+    if (student.role !== 'student') {
+      throw new StoreError(403, 'Only students can apply to opportunities.');
+    }
+    if (resumeData.length < 5 || resumeData.subarray(0, 5).toString() !== '%PDF-') {
+      throw new StoreError(400, 'Please upload a valid PDF resume.');
+    }
+
+    const db = requireDb();
+    const opportunity = await db
+      .select({ id: opportunities.id })
+      .from(opportunities)
+      .where(eq(opportunities.id, opportunityId))
+      .limit(1);
+    if (!opportunity[0]) throw new StoreError(404, 'Opportunity not found.');
+
+    const safeName = fileName
+      .replace(/[\\/\u0000-\u001f\u007f]/g, '_')
+      .trim()
+      .slice(0, 120);
+    if (!safeName) throw new StoreError(400, 'Resume filename is required.');
+
+    const applicationId = `app-${crypto.randomUUID().slice(0, 12)}`;
+    const inserted = await db
+      .insert(opportunityApplications)
+      .values({
+        id: applicationId,
+        opportunityId,
+        studentId: student.id,
+        resumeFileName: safeName,
+        resumeData,
+        extractedData: {},
+      })
+      .onConflictDoNothing({
+        target: [
+          opportunityApplications.opportunityId,
+          opportunityApplications.studentId,
+        ],
+      })
+      .returning({ id: opportunityApplications.id });
+    if (!inserted[0]) {
+      throw new StoreError(409, 'You have already applied to this opportunity.');
+    }
+    const applications = await this.listOpportunityApplications(student);
+    const created = applications.find((item) => item.id === inserted[0].id);
+    if (!created) throw new StoreError(500, 'Unable to load your submitted application.');
+    return created;
+  }
+
+  async listOpportunityApplications(
+    viewer: AuthUser,
+  ): Promise<OpportunityApplication[]> {
+    await ensureDatabaseSchema();
+    const db = requireDb();
+    const base = db
+      .select({
+        id: opportunityApplications.id,
+        opportunityId: opportunityApplications.opportunityId,
+        opportunityTitle: opportunities.title,
+        studentId: opportunityApplications.studentId,
+        studentName: users.name,
+        studentEmail: users.email,
+        studentBranch: studentProfiles.branch,
+        studentSemester: studentProfiles.semester,
+        status: opportunityApplications.status,
+        resumeFileName: opportunityApplications.resumeFileName,
+        createdAt: opportunityApplications.createdAt,
+      })
+      .from(opportunityApplications)
+      .innerJoin(
+        opportunities,
+        eq(opportunities.id, opportunityApplications.opportunityId),
+      )
+      .innerJoin(users, eq(users.id, opportunityApplications.studentId))
+      .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+      .orderBy(desc(opportunityApplications.createdAt));
+
+    const rows =
+      viewer.role === 'admin'
+        ? await base
+        : viewer.role === 'student'
+          ? await base.where(eq(opportunityApplications.studentId, viewer.id))
+          : await base.where(eq(opportunities.postedById, viewer.id));
+
+    return rows.map((row) => ({
+      id: row.id,
+      opportunityId: row.opportunityId,
+      opportunityTitle: row.opportunityTitle,
+      studentId: row.studentId,
+      studentName: row.studentName,
+      studentEmail: row.studentEmail,
+      studentBranch: normalizeBranch(row.studentBranch ?? 'CSE'),
+      studentSemester: row.studentSemester ?? 6,
+      status: row.status as OpportunityApplication['status'],
+      resumeFileName: row.resumeFileName,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+
+  async getOpportunityApplicationResume(
+    applicationId: string,
+    viewer: AuthUser,
+  ): Promise<StoredResume> {
+    await ensureDatabaseSchema();
+    const db = requireDb();
+    const rows = await db
+      .select({
+        fileName: opportunityApplications.resumeFileName,
+        fileData: opportunityApplications.resumeData,
+        studentId: opportunityApplications.studentId,
+        postedById: opportunities.postedById,
+      })
+      .from(opportunityApplications)
+      .innerJoin(
+        opportunities,
+        eq(opportunities.id, opportunityApplications.opportunityId),
+      )
+      .where(eq(opportunityApplications.id, applicationId))
+      .limit(1);
+    const application = rows[0];
+    if (!application) throw new StoreError(404, 'Application not found.');
+    if (
+      viewer.role !== 'admin' &&
+      viewer.id !== application.studentId &&
+      !(viewer.role === 'alumni' && viewer.id === application.postedById)
+    ) {
+      throw new StoreError(403, 'You are not allowed to access this resume.');
+    }
+    return {
+      fileName: application.fileName,
+      fileData: application.fileData,
+    };
+  }
+
+  async updateOpportunityApplicationStatus(
+    applicationId: string,
+    viewer: AuthUser,
+    status: OpportunityApplication['status'],
+  ): Promise<OpportunityApplication> {
+    await ensureDatabaseSchema();
+    if (!['reviewed', 'accepted', 'declined'].includes(status)) {
+      throw new StoreError(400, 'Choose a valid application status.');
+    }
+    const db = requireDb();
+    const rows = await db
+      .select({
+        id: opportunityApplications.id,
+        opportunityId: opportunityApplications.opportunityId,
+        opportunityTitle: opportunities.title,
+        studentId: opportunityApplications.studentId,
+        studentName: users.name,
+        studentEmail: users.email,
+        studentBranch: studentProfiles.branch,
+        studentSemester: studentProfiles.semester,
+        resumeFileName: opportunityApplications.resumeFileName,
+        createdAt: opportunityApplications.createdAt,
+        postedById: opportunities.postedById,
+      })
+      .from(opportunityApplications)
+      .innerJoin(
+        opportunities,
+        eq(opportunities.id, opportunityApplications.opportunityId),
+      )
+      .innerJoin(users, eq(users.id, opportunityApplications.studentId))
+      .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+      .where(eq(opportunityApplications.id, applicationId))
+      .limit(1);
+    const application = rows[0];
+    if (!application) throw new StoreError(404, 'Application not found.');
+    if (
+      viewer.role !== 'admin' &&
+      !(viewer.role === 'alumni' && viewer.id === application.postedById)
+    ) {
+      throw new StoreError(403, 'Only the opportunity poster or an admin can review applications.');
+    }
+    await db
+      .update(opportunityApplications)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(opportunityApplications.id, applicationId));
+    return {
+      id: application.id,
+      opportunityId: application.opportunityId,
+      opportunityTitle: application.opportunityTitle,
+      studentId: application.studentId,
+      studentName: application.studentName,
+      studentEmail: application.studentEmail,
+      studentBranch: normalizeBranch(application.studentBranch ?? 'CSE'),
+      studentSemester: application.studentSemester ?? 6,
+      status,
+      resumeFileName: application.resumeFileName,
+      createdAt: application.createdAt.toISOString(),
+    };
+  }
+
   async listGuides(
     userId: string,
     options: { page?: number; limit?: number; domain?: string } = {},
@@ -2171,7 +2566,7 @@ class PostgresParthaStore {
     await ensureDatabaseSchema();
     const db = requireDb();
 
-    const [allRows, upvoteRows] = await Promise.all([
+    const [storedRows, upvoteRows, accountRows] = await Promise.all([
       db
         .select()
         .from(knowledgeGuides)
@@ -2180,7 +2575,12 @@ class PostgresParthaStore {
         .select({ guideId: guideUpvotes.guideId })
         .from(guideUpvotes)
         .where(eq(guideUpvotes.userId, userId)),
+      db.select({ id: users.id, isActive: users.isActive }).from(users),
     ]);
+    const activeAccounts = new Map(accountRows.map((row) => [row.id, row.isActive]));
+    const allRows = storedRows.filter(
+      (guide) => activeAccounts.get(guide.authorId) === true,
+    );
 
     const domainSet = new Set<string>();
     allRows.forEach((g) => domainSet.add(g.domain));
@@ -2584,13 +2984,21 @@ class PostgresParthaStore {
     await ensureDatabaseSchema();
     const db = requireDb();
 
-    const [allAlumni, allMentorships, allSessions, allOpps, allGuides] =
+    const [
+      allAlumni,
+      allMentorships,
+      allSessions,
+      allOpps,
+      allGuides,
+      allStudents,
+    ] =
       await Promise.all([
         db.select().from(alumniProfiles),
         db.select().from(mentorshipRequests),
         db.select().from(mentorshipSessions),
         db.select().from(opportunities),
         db.select().from(knowledgeGuides),
+        db.select().from(studentProfiles),
       ]);
 
     const verified = allAlumni.filter((a) => a.verificationStatus === 'verified');
@@ -2601,16 +3009,36 @@ class PostgresParthaStore {
     const pendingMentorships = allMentorships.filter((m) => m.status === 'pending');
     const declinedMentorships = allMentorships.filter((m) => m.status === 'declined');
 
-    const domainMap = new Map<string, { alumniCount: number; guideCount: number }>();
+    const domainMap = new Map<
+      string,
+      { alumniCount: number; guideCount: number; studentCount: number }
+    >();
     for (const a of verified) {
-      const cur = domainMap.get(a.domain) ?? { alumniCount: 0, guideCount: 0 };
+      const cur = domainMap.get(a.domain) ?? {
+        alumniCount: 0,
+        guideCount: 0,
+        studentCount: 0,
+      };
       cur.alumniCount += 1;
       domainMap.set(a.domain, cur);
     }
     for (const g of allGuides) {
-      const cur = domainMap.get(g.domain) ?? { alumniCount: 0, guideCount: 0 };
+      const cur = domainMap.get(g.domain) ?? {
+        alumniCount: 0,
+        guideCount: 0,
+        studentCount: 0,
+      };
       cur.guideCount += 1;
       domainMap.set(g.domain, cur);
+    }
+    for (const student of allStudents) {
+      const cur = domainMap.get(student.targetDomain) ?? {
+        alumniCount: 0,
+        guideCount: 0,
+        studentCount: 0,
+      };
+      cur.studentCount += 1;
+      domainMap.set(student.targetDomain, cur);
     }
 
     const topDomains = Array.from(domainMap.entries())
@@ -2618,9 +3046,28 @@ class PostgresParthaStore {
         domain,
         alumniCount: counts.alumniCount,
         guideCount: counts.guideCount,
+        studentCount: counts.studentCount,
       }))
-      .sort((a, b) => b.alumniCount + b.guideCount - (a.alumniCount + a.guideCount))
+      .sort(
+        (a, b) =>
+          b.alumniCount + b.guideCount + b.studentCount -
+          (a.alumniCount + a.guideCount + a.studentCount),
+      )
       .slice(0, 6);
+
+    const goalMap = new Map<string, number>();
+    for (const request of allMentorships) {
+      goalMap.set(request.goal, (goalMap.get(request.goal) ?? 0) + 1);
+    }
+    for (const student of allStudents) {
+      for (const goal of student.mentorshipGoals) {
+        goalMap.set(goal, (goalMap.get(goal) ?? 0) + 1);
+      }
+    }
+    const mentorshipGoalBreakdown = Array.from(goalMap.entries())
+      .map(([goal, requestCount]) => ({ goal, requestCount }))
+      .sort((a, b) => b.requestCount - a.requestCount)
+      .slice(0, 10);
 
     const branchMap = new Map<BranchCode, number>();
     for (const b of VALID_BRANCHES) branchMap.set(b, 0);
@@ -2647,8 +3094,97 @@ class PostgresParthaStore {
       knowledgeGuidesCount: allGuides.length,
       totalGuideUpvotes: allGuides.reduce((sum, g) => sum + g.upvotes, 0),
       topDomains,
+      mentorshipGoalBreakdown,
       branchBreakdown,
     };
+  }
+
+  async getAdminStudentProfiles(): Promise<AdminStudentRecord[]> {
+    await ensureDatabaseSchema();
+    const db = requireDb();
+    const rows = await db
+      .select({
+        id: users.id,
+        accountActive: users.isActive,
+        name: users.name,
+        email: users.email,
+        registeredAt: users.createdAt,
+        usn: studentProfiles.usn,
+        branch: studentProfiles.branch,
+        semester: studentProfiles.semester,
+        targetSkills: studentProfiles.targetSkills,
+        targetDomain: studentProfiles.targetDomain,
+        mentorshipGoals: studentProfiles.mentorshipGoals,
+        customMentorshipGoal: studentProfiles.customMentorshipGoal,
+        targetCompany: studentProfiles.targetCompany,
+        resumeUrl: studentProfiles.resumeUrl,
+        resumeFileName: studentProfiles.resumeFileName,
+        resumeText: studentProfiles.resumeText,
+        githubUrl: studentProfiles.githubUrl,
+        linkedinUrl: studentProfiles.linkedinUrl,
+        leetcodeUrl: studentProfiles.leetcodeUrl,
+        avatarUrl: studentProfiles.avatarUrl,
+        lookingForInternship: studentProfiles.lookingForInternship,
+        lookingForProjectHelp: studentProfiles.lookingForProjectHelp,
+      })
+      .from(users)
+      .innerJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+      .where(eq(users.role, 'student'))
+      .orderBy(desc(users.createdAt));
+
+    return rows.map((row) => ({
+      profile: {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        usn: row.usn,
+        branch: normalizeBranch(row.branch),
+        semester: row.semester,
+        targetSkills: row.targetSkills,
+        targetDomain: row.targetDomain,
+        mentorshipGoals: row.mentorshipGoals,
+        customMentorshipGoal: row.customMentorshipGoal,
+        targetCompany: row.targetCompany,
+        resumeUrl: row.resumeUrl,
+        resumeFileName: row.resumeFileName,
+        resumeText: row.resumeText,
+        githubUrl: row.githubUrl,
+        linkedinUrl: row.linkedinUrl,
+        leetcodeUrl: row.leetcodeUrl,
+        avatarUrl: row.avatarUrl || undefined,
+        lookingForInternship: row.lookingForInternship,
+        lookingForProjectHelp: row.lookingForProjectHelp,
+      },
+      registeredAt: row.registeredAt.toISOString(),
+      accountActive: row.accountActive,
+    }));
+  }
+
+  async setAccountActive(
+    targetUserId: string,
+    isActive: boolean,
+    admin: AuthUser,
+  ): Promise<{ userId: string; isActive: boolean }> {
+    if (admin.role !== 'admin') {
+      throw new StoreError(403, 'Only administrators can change account status.');
+    }
+
+    await ensureDatabaseSchema();
+    const db = requireDb();
+    const rows = await db
+      .update(users)
+      .set({ isActive, updatedAt: new Date() })
+      .where(
+        and(
+          eq(users.id, clampText(targetUserId, 120)),
+          inArray(users.role, ['student', 'alumni']),
+        ),
+      )
+      .returning({ id: users.id, isActive: users.isActive });
+    const updated = rows[0];
+    if (!updated) throw new StoreError(404, 'Student or Alumni account not found.');
+
+    return { userId: updated.id, isActive: updated.isActive };
   }
 }
 

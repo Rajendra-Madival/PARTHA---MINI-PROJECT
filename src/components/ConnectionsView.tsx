@@ -95,7 +95,7 @@ export function ConnectionsView({
             Privacy-Gated Mentorship Connections
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[#18221D]">
-            My Mentors
+            My Mentorship Connections
           </h1>
           <p className="mt-1 text-sm text-stone-600">
             Once an alumnus accepts your request, you can see their contact details, message them directly, and book a 20-minute 1-on-1 call.
@@ -106,7 +106,7 @@ export function ConnectionsView({
           onClick={onGoToDiscover}
           className="rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Find More Mentors
+          Find More Alumni
         </button>
       </section>
 
@@ -138,7 +138,7 @@ export function ConnectionsView({
         <>
           <section className="space-y-4">
             <h2 className="font-display text-base font-semibold text-[#18221D]">
-              Accepted Mentors ({accepted.length})
+              Accepted Alumni ({accepted.length})
             </h2>
 
             {accepted.length === 0 ? (
@@ -147,7 +147,7 @@ export function ConnectionsView({
                   No unlocked connections yet
                 </h3>
                 <p className="mt-1 text-xs text-stone-500">
-                  Send a mentorship request from Find Mentors. Once accepted, unlocked contact details, direct chat, and call booking will appear here.
+                  Send a mentorship request from Find Alumni. Once accepted, unlocked contact details, direct chat, and call booking will appear here.
                 </p>
               </div>
             ) : (

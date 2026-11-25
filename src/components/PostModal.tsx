@@ -1,15 +1,7 @@
 import { X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import type { AuthUser, OpportunityType } from '../types';
-
-const DOMAINS = [
-  'Machine Learning & AI',
-  'Cloud & Distributed Systems',
-  'Full-Stack & FinTech',
-  'Embedded & Robotics',
-  'Data Engineering',
-  'Cybersecurity & Infra',
-];
+import { DOMAINS } from './profileOptions';
 
 interface PostModalProps {
   isOpen: boolean;
@@ -45,23 +37,23 @@ export function PostModal({
   onCreateOpportunity,
   onCreateGuide,
 }: PostModalProps) {
-  const [mode, setMode] = useState<'opportunity' | 'guide'>(defaultMode);
+  const mode = defaultMode;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [oppTitle, setOppTitle] = useState('');
   const [company, setCompany] = useState('');
   const [oppType, setOppType] = useState<OpportunityType>('Internship');
-  const [oppDomain, setOppDomain] = useState(DOMAINS[0]);
+  const [oppDomain, setOppDomain] = useState('AI / Machine Learning');
   const [location, setLocation] = useState('Bengaluru');
   const [stipendOrCtc, setStipendOrCtc] = useState('₹60,000 / month');
   const [skillsText, setSkillsText] = useState('Python, PyTorch, Machine Learning');
   const [oppDescription, setOppDescription] = useState('');
-  const [applyUrl, setApplyUrl] = useState('https://careers.google.com/students/');
+  const [applyUrl, setApplyUrl] = useState('');
   const [isRemote, setIsRemote] = useState(false);
 
   const [guideTitle, setGuideTitle] = useState('');
-  const [guideDomain, setGuideDomain] = useState(DOMAINS[0]);
+  const [guideDomain, setGuideDomain] = useState('AI / Machine Learning');
   const [guideSummary, setGuideSummary] = useState('');
   const [guideContent, setGuideContent] = useState('');
   const [readTime, setReadTime] = useState(5);
@@ -153,31 +145,6 @@ export function PostModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          <div className="flex items-center gap-1 rounded-lg border border-[#E5DFD0] bg-[#F3EFE4] p-1">
-            <button
-              type="button"
-              onClick={() => setMode('opportunity')}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                mode === 'opportunity'
-                  ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                  : 'text-stone-600 hover:text-[#18221D]'
-              }`}
-            >
-              Share Opportunity
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('guide')}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                mode === 'guide'
-                  ? 'bg-[#FFFEFA] text-emerald-800 shadow-xs'
-                  : 'text-stone-600 hover:text-[#18221D]'
-              }`}
-            >
-              Write Prep Guide
-            </button>
-          </div>
-
           {mode === 'opportunity' ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -204,7 +171,11 @@ export function PostModal({
                 >
                   <option value="Internship">Internship</option>
                   <option value="Full-time Job">Full-time Job</option>
+                  <option value="Hackathon">Hackathon</option>
+                  <option value="Competition">Competition</option>
+                  <option value="Research Opportunity">Research Opportunity</option>
                   <option value="Collaborative Project">Collaborative Project</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -264,12 +235,13 @@ export function PostModal({
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Apply Link
+                  External Apply Link (optional)
                 </label>
                 <input
                   type="url"
                   value={applyUrl}
                   onChange={(e) => setApplyUrl(e.target.value)}
+                  placeholder="https://careers.example.com/role"
                   className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
                 />
               </div>

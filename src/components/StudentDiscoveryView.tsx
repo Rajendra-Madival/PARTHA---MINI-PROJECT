@@ -15,7 +15,9 @@ import type {
 } from '../types';
 import { evaluateAlumniMatch } from '../utils/matchingEngine';
 import { AlumniCard } from './AlumniCard';
+import { DomainSelect } from './DomainSelect';
 import { DiscoverySkeletonGrid } from './SkeletonLoaders';
+import { SkillPicker } from './SkillPicker';
 
 interface StudentDiscoveryViewProps {
   alumni: AlumniProfile[];
@@ -75,11 +77,15 @@ export function StudentDiscoveryView({
 }: StudentDiscoveryViewProps) {
   const [searchDraft, setSearchDraft] = useState(filters.search);
   const [editingGoals, setEditingGoals] = useState(false);
-  const [goalSkillsInput, setGoalSkillsInput] = useState(
-    studentProfile.targetSkills.join(', '),
-  );
+  const [goalSkillsInput, setGoalSkillsInput] = useState(studentProfile.targetSkills);
   const [goalDomain, setGoalDomain] = useState(studentProfile.targetDomain);
   const [goalCompany, setGoalCompany] = useState(studentProfile.targetCompany);
+
+  useEffect(() => {
+    setGoalSkillsInput(studentProfile.targetSkills);
+    setGoalDomain(studentProfile.targetDomain);
+    setGoalCompany(studentProfile.targetCompany);
+  }, [studentProfile]);
 
   useEffect(() => {
     setSearchDraft(filters.search);
@@ -124,12 +130,8 @@ export function StudentDiscoveryView({
     filters.savedOnly;
 
   async function handleSaveGoals() {
-    const parsedSkills = goalSkillsInput
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
     await onUpdateStudentProfile({
-      targetSkills: parsedSkills.length > 0 ? parsedSkills : ['Machine Learning'],
+      targetSkills: goalSkillsInput,
       targetDomain: goalDomain,
       targetCompany: goalCompany.trim(),
     });
@@ -143,12 +145,12 @@ export function StudentDiscoveryView({
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight text-[#18221D]">
               {role === 'student'
-                ? 'Find KLS VDIT Mentors'
+                ? 'Find KLS VDIT Alumni'
                 : 'Verified Alumni Directory'}
             </h1>
             <p className="mt-1 text-sm text-stone-600">
               {role === 'student'
-                ? 'Browse verified seniors matched to your skills. Save mentors to your shortlist or send a mentorship request to unlock contact details.'
+                ? '                Browse verified alumni matched to your skills. Save alumni or send a mentorship request to unlock contact details.'
                 : 'All verified KLS VDIT alumni currently visible to students.'}
             </p>
           </div>
@@ -157,7 +159,7 @@ export function StudentDiscoveryView({
             <button
               type="button"
               onClick={() => {
-                setGoalSkillsInput(studentProfile.targetSkills.join(', '));
+                setGoalSkillsInput(studentProfile.targetSkills);
                 setGoalDomain(studentProfile.targetDomain);
                 setGoalCompany(studentProfile.targetCompany);
                 setEditingGoals((v) => !v);
@@ -197,10 +199,10 @@ export function StudentDiscoveryView({
               <label className="block text-xs font-medium text-stone-700 mb-1">
                 Skills you want to learn
               </label>
-              <input
-                type="text"
-                value={goalSkillsInput}
-                onChange={(e) => setGoalSkillsInput(e.target.value)}
+              <SkillPicker
+                id="discovery-skills"
+                skills={goalSkillsInput}
+                onChange={setGoalSkillsInput}
                 className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-1.5 text-sm focus:border-emerald-700 focus:outline-none"
               />
             </div>
@@ -208,27 +210,12 @@ export function StudentDiscoveryView({
               <label className="block text-xs font-medium text-stone-700 mb-1">
                 Domain
               </label>
-              <select
+              <DomainSelect
+                id="discovery-domain"
                 value={goalDomain}
-                onChange={(e) => setGoalDomain(e.target.value)}
+                onChange={setGoalDomain}
                 className="w-full rounded-lg border border-[#E5DFD0] bg-white px-3 py-1.5 text-sm focus:border-emerald-700 focus:outline-none"
-              >
-                {Array.from(
-                  new Set([
-                    'Machine Learning & AI',
-                    'Cloud & Distributed Systems',
-                    'Full-Stack & FinTech',
-                    'Embedded & Robotics',
-                    'Data Engineering',
-                    'Cybersecurity & Infra',
-                    ...facets.domains,
-                  ]),
-                ).map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="flex items-end gap-2">
               <div className="flex-1">
@@ -453,7 +440,7 @@ export function StudentDiscoveryView({
               }}
               className="mt-4 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-900 cursor-pointer"
             >
-              Show All Mentors
+              Show All Alumni
             </button>
           )}
         </div>

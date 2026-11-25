@@ -60,9 +60,11 @@ const SCHEMA_STATEMENTS = [
     subtitle TEXT NOT NULL DEFAULT '',
     branch TEXT NOT NULL DEFAULT 'CSE',
     password_hash TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`,
   `CREATE UNIQUE INDEX IF NOT EXISTS users_role_email_idx ON users (role, email)`,
   `CREATE TABLE IF NOT EXISTS student_profiles (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -71,8 +73,11 @@ const SCHEMA_STATEMENTS = [
     semester INTEGER NOT NULL DEFAULT 6,
     target_skills TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     target_domain TEXT NOT NULL DEFAULT 'Machine Learning & AI',
+    mentorship_goals TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    custom_mentorship_goal TEXT NOT NULL DEFAULT '',
     target_company TEXT NOT NULL DEFAULT '',
     resume_url TEXT NOT NULL DEFAULT '',
+    resume_file_name TEXT NOT NULL DEFAULT '',
     resume_text TEXT NOT NULL DEFAULT '',
     github_url TEXT NOT NULL DEFAULT '',
     linkedin_url TEXT NOT NULL DEFAULT '',
@@ -82,6 +87,9 @@ const SCHEMA_STATEMENTS = [
     looking_for_project_help BOOLEAN NOT NULL DEFAULT TRUE,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS mentorship_goals TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]`,
+  `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS custom_mentorship_goal TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS resume_file_name TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS resume_text TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS github_url TEXT NOT NULL DEFAULT ''`,
@@ -178,6 +186,25 @@ const SCHEMA_STATEMENTS = [
     posted_by_role TEXT NOT NULL,
     is_remote BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS student_resumes (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_data BYTEA NOT NULL,
+    extracted_data JSONB NOT NULL DEFAULT '{}'::JSONB,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS opportunity_applications (
+    id TEXT PRIMARY KEY,
+    opportunity_id TEXT NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+    student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    resume_file_name TEXT NOT NULL,
+    resume_data BYTEA NOT NULL,
+    extracted_data JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (opportunity_id, student_id)
   )`,
   `CREATE TABLE IF NOT EXISTS knowledge_guides (
     id TEXT PRIMARY KEY,

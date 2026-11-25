@@ -14,7 +14,11 @@ export type MentorshipStatus = 'pending' | 'accepted' | 'declined';
 export type OpportunityType =
   | 'Internship'
   | 'Full-time Job'
-  | 'Collaborative Project';
+  | 'Hackathon'
+  | 'Competition'
+  | 'Research Opportunity'
+  | 'Collaborative Project'
+  | 'Other';
 
 export type BranchCode = 'CSE' | 'ISE' | 'ECE' | 'ME' | 'EEE';
 
@@ -36,6 +40,7 @@ export interface AuthUser {
   role: UserRole;
   name: string;
   email: string;
+  isActive: boolean;
   subtitle: string;
   branch?: BranchCode;
   isAdminAccount?: boolean;
@@ -64,6 +69,7 @@ export interface AlumniHighlight {
 export interface AlumniProfile {
   id: string;
   ownerUid: string;
+  accountActive: boolean;
   name: string;
   graduationYear: number;
   branch: BranchCode;
@@ -95,8 +101,11 @@ export interface StudentTargetProfile {
   semester: number;
   targetSkills: string[];
   targetDomain: string;
+  mentorshipGoals: string[];
+  customMentorshipGoal: string;
   targetCompany: string;
   resumeUrl: string;
+  resumeFileName?: string;
   resumeText?: string;
   githubUrl?: string;
   linkedinUrl?: string;
@@ -104,6 +113,12 @@ export interface StudentTargetProfile {
   avatarUrl?: string;
   lookingForInternship: boolean;
   lookingForProjectHelp: boolean;
+}
+
+export interface AdminStudentRecord {
+  profile: StudentTargetProfile;
+  registeredAt: string;
+  accountActive: boolean;
 }
 
 export interface MatchResult {
@@ -182,6 +197,20 @@ export interface Opportunity {
   isRemote: boolean;
 }
 
+export interface OpportunityApplication {
+  id: string;
+  opportunityId: string;
+  opportunityTitle: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  studentBranch: BranchCode;
+  studentSemester: number;
+  status: 'pending' | 'reviewed' | 'accepted' | 'declined';
+  resumeFileName: string;
+  createdAt: string;
+}
+
 export interface KnowledgeGuide {
   id: string;
   title: string;
@@ -204,6 +233,12 @@ export interface DomainMetric {
   domain: string;
   alumniCount: number;
   guideCount: number;
+  studentCount: number;
+}
+
+export interface MentorshipGoalMetric {
+  goal: string;
+  requestCount: number;
 }
 
 export interface BranchMetric {
@@ -224,6 +259,7 @@ export interface AdminMetrics {
   knowledgeGuidesCount: number;
   totalGuideUpvotes: number;
   topDomains: DomainMetric[];
+  mentorshipGoalBreakdown: MentorshipGoalMetric[];
   branchBreakdown: BranchMetric[];
 }
 

@@ -69,12 +69,36 @@ export function evaluateAlumniMatch(
     }
   }
 
+  const goals = new Set(student.mentorshipGoals.map(normalize));
+  if (
+    goals.has('career guidance & referrals') &&
+    alumni.openToInternshipReferrals
+  ) {
+    score += 8;
+    reasonParts.push('career guidance availability');
+  }
+  if (
+    student.mentorshipGoals.some((goal) =>
+      [
+        'resume review',
+        'project review',
+        'interview preparation',
+        'technical guidance',
+      ].includes(normalize(goal)),
+    ) &&
+    alumni.openToProjectMentoring
+  ) {
+    score += 6;
+    reasonParts.push('project and technical guidance');
+  }
+
   if (student.lookingForInternship && alumni.openToInternshipReferrals) {
     score += 5;
   }
   if (student.lookingForProjectHelp && alumni.openToProjectMentoring) {
     score += 4;
   }
+  if (alumni.branch === student.branch) score += 3;
 
   if (alumni.sharedProjectGuidesCount > 0) {
     const guidePoints = Math.min(10, alumni.sharedProjectGuidesCount * 3);

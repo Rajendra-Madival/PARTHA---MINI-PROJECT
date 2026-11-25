@@ -8,6 +8,7 @@ import { GuideReaderModal } from './components/GuideReaderModal';
 import { MentorshipModal } from './components/MentorshipModal';
 import { Navbar, type ActiveTab } from './components/Navbar';
 import { OpportunitiesFeedView } from './components/OpportunitiesFeedView';
+import { ParthaLandingPage } from './components/ParthaLandingPage';
 import { PostModal } from './components/PostModal';
 import { ProfileDetailsView } from './components/ProfileDetailsView';
 import { SeniorIntakeFormPanel } from './components/SeniorIntakeFormPanel';
@@ -20,6 +21,7 @@ import { parthaApi } from './services/api';
 import type {
   AdminBootstrapStatus,
   AdminMetrics,
+  AdminStudentRecord,
   AlumniDiscoveryResponse,
   AlumniProfile,
   AuthSession,
@@ -32,6 +34,7 @@ import type {
   MentorshipGoal,
   MentorshipRequest,
   OpportunitiesPaginatedResponse,
+  OpportunityApplication,
   OpportunityType,
   ParthaNotification,
   SeniorIntakeForm,
@@ -90,6 +93,7 @@ export default function App() {
     AlumniProfile | undefined
   >(undefined);
   const [adminAlumniList, setAdminAlumniList] = useState<AlumniProfile[]>([]);
+  const [adminStudentList, setAdminStudentList] = useState<AdminStudentRecord[]>([]);
 
   // Paginated discovery state
   const [discoveryFilters, setDiscoveryFilters] = useState<DiscoveryFilters>(
@@ -119,6 +123,9 @@ export default function App() {
 
   // Core workspace state
   const [mentorships, setMentorships] = useState<MentorshipRequest[]>([]);
+  const [opportunityApplications, setOpportunityApplications] = useState<
+    OpportunityApplication[]
+  >([]);
   const [bookmarks, setBookmarks] = useState<UserBookmarks>({
     alumniIds: [],
     opportunityIds: [],
@@ -263,26 +270,30 @@ export default function App() {
     async (currentUser: AuthUser, silent = false) => {
       if (!silent) setCoreLoading(true);
       try {
-        const [mentorshipList, bookmarkData, notificationList] =
+        const [mentorshipList, bookmarkData, notificationList, applicationList] =
           await Promise.all([
             parthaApi.getMentorships(),
             parthaApi.getBookmarks(),
             parthaApi.getNotifications(),
+            parthaApi.getOpportunityApplications(),
           ]);
 
         setMentorships(mentorshipList);
         setBookmarks(bookmarkData);
         setNotifications(notificationList);
+        setOpportunityApplications(applicationList);
 
         if (currentUser.role === 'admin') {
-          const [allAlumniRes, metricsRes, formsRes] = await Promise.all([
+          const [allAlumniRes, metricsRes, formsRes, studentsRes] = await Promise.all([
             parthaApi.getAlumni({ includeAll: true, page: 1, limit: 200 }),
             parthaApi.getAdminMetrics(),
             parthaApi.listSeniorIntakeForms(),
+            parthaApi.getAdminStudents(),
           ]);
           setAdminAlumniList(allAlumniRes.items);
           setAdminMetrics(metricsRes);
           setSeniorForms(formsRes);
+          setAdminStudentList(studentsRes);
         } else if (currentUser.role === 'alumni') {
           const ownRes = await parthaApi.getAlumni({
             search: currentUser.name,
@@ -326,13 +337,14 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user, loadCoreData]);
 
-  function handleAuthenticated(session: AuthSession) {
+  function handleAuthenticated(session: AuthSession, notice?: string) {
     setDiscoveryLoading(true);
     setFeedLoading(true);
     setUser(session.user);
     setStudentProfile(session.user.studentProfile ?? null);
     setOwnAlumniProfile(undefined);
     setAdminAlumniList([]);
+    setAdminStudentList([]);
     setDiscoveryFilters(DEFAULT_DISCOVERY_FILTERS);
     setAlumniPage(1);
     setOppTypeFilter('All');
@@ -342,6 +354,7 @@ export default function App() {
     setGuidePage(1);
     setActiveTab(defaultTabForRole(session.user.role));
     void loadCoreData(session.user);
+    if (notice) showToast(notice);
   }
 
   function handleLogout() {
@@ -356,6 +369,7 @@ export default function App() {
     setGuidesData(EMPTY_GUIDES);
     setExtraGuides({});
     setMentorships([]);
+    setOpportunityApplications([]);
     setBookmarks({ alumniIds: [], opportunityIds: [] });
     setNotifications([]);
     setSeniorForms([]);
@@ -518,6 +532,16 @@ export default function App() {
     showToast(`${target?.name ?? 'Alumnus'} was removed from the verification queue.`);
   }
 
+  async function handleAdminAccountActive(userId: string, isActive: boolean) {
+    if (!user) return;
+    await parthaApi.setAdminAccountActive(userId, isActive);
+    await Promise.all([
+      loadCoreData(user, true),
+      loadDiscovery(user, discoveryFilters, alumniPage, true),
+    ]);
+    showToast(isActive ? 'Account reactivated.' : 'Account suspended.');
+  }
+
   async function handleToggleUpvote(guideId: string) {
     if (!user) return;
     const updated = await parthaApi.toggleGuideUpvote(guideId);
@@ -551,6 +575,53 @@ export default function App() {
       loadCoreData(user, true),
     ]);
     showToast('Opportunity published.');
+  }
+
+  async function handleApplyToOpportunity(opportunityId: string, file: File) {
+    if (!user) return;
+    const application = await parthaApi.submitOpportunityApplication(
+      opportunityId,
+      file,
+    );
+    setOpportunityApplications((current) => [
+      application,
+      ...current.filter((item) => item.id !== application.id),
+    ]);
+    showToast('Your application and resume were submitted.');
+  }
+
+  async function handleUpdateApplicationStatus(
+    applicationId: string,
+    status: OpportunityApplication['status'],
+  ) {
+    const updated = await parthaApi.updateOpportunityApplicationStatus(
+      applicationId,
+      status,
+    );
+    setOpportunityApplications((current) =>
+      current.map((item) => (item.id === applicationId ? updated : item)),
+    );
+    showToast('Application status updated.');
+  }
+
+  async function handleDownloadApplicationResume(applicationId: string) {
+    const blob = await parthaApi.getOpportunityApplicationResume(applicationId);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'application-resume.pdf';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function handleDownloadStudentResume(studentId: string) {
+    const blob = await parthaApi.getAdminStudentResume(studentId);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'student-resume.pdf';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function handleCreateGuide(payload: {
@@ -647,13 +718,16 @@ export default function App() {
 
   if (!user) {
     return (
-      <AuthScreen
-        dbHealth={dbHealth}
-        bootstrapStatus={bootstrapStatus}
-        checkingConnection={checkingConnection}
-        onRetryHealth={checkHealthAndBootstrap}
-        onAuthenticated={handleAuthenticated}
-      />
+      <ParthaLandingPage>
+        <AuthScreen
+          dbHealth={dbHealth}
+          bootstrapStatus={bootstrapStatus}
+          checkingConnection={checkingConnection}
+          onRetryHealth={checkHealthAndBootstrap}
+          onAuthenticated={handleAuthenticated}
+          embedded
+        />
+      </ParthaLandingPage>
     );
   }
 
@@ -676,6 +750,8 @@ export default function App() {
     semester: 6,
     targetSkills: ['Machine Learning', 'Python'],
     targetDomain: 'Machine Learning & AI',
+    mentorshipGoals: [],
+    customMentorshipGoal: '',
     targetCompany: '',
     resumeUrl: '',
     lookingForInternship: true,
@@ -744,7 +820,7 @@ export default function App() {
                   onClick={() => void handleDismissNotifications(true)}
                   className="rounded-lg bg-emerald-800 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-900 cursor-pointer"
                 >
-                  Open My Mentors
+                  Open My Connections
                 </button>
               )}
               <button
@@ -806,6 +882,12 @@ export default function App() {
             opportunitiesTotal={opportunitiesData.total}
             opportunitiesPage={opportunitiesData.page}
             opportunitiesTotalPages={opportunitiesData.totalPages}
+            appliedOpportunityIds={opportunityApplications
+              .filter((application) => application.studentId === user.id)
+              .map((application) => application.opportunityId)}
+            myApplications={opportunityApplications.filter(
+              (application) => application.studentId === user.id,
+            )}
             guides={guidesData.items}
             guidesTotal={guidesData.total}
             guidesPage={guidesData.page}
@@ -831,6 +913,7 @@ export default function App() {
             onOpportunitiesPageChange={setOppPage}
             onGuidesPageChange={setGuidePage}
             onToggleSaveOpportunity={handleToggleSaveOpportunity}
+            onApply={handleApplyToOpportunity}
             onToggleUpvote={handleToggleUpvote}
             onOpenGuide={(guideId) => void handleOpenGuide(guideId)}
             onOpenPostModal={(mode) => setPostModalState({ open: true, mode })}
@@ -842,6 +925,7 @@ export default function App() {
             user={user}
             alumniProfile={ownAlumniProfile}
             requests={mentorships}
+            applications={opportunityApplications}
             loading={coreLoading}
             onRespond={handleRespondMentorship}
             onOpenPostModal={(mode) => setPostModalState({ open: true, mode })}
@@ -850,17 +934,26 @@ export default function App() {
             onConfirmSession={handleConfirmSession}
             onMarkRead={handleMarkMentorshipRead}
             onEditDetails={() => setActiveTab('profile')}
+            onUpdateApplicationStatus={handleUpdateApplicationStatus}
+            onDownloadApplicationResume={handleDownloadApplicationResume}
           />
         )}
 
         {activeTab === 'admin-queue' && (
           <AdminDashboardView
             allAlumni={adminAlumniList}
+            allStudents={adminStudentList}
+            mentorships={mentorships}
             metrics={adminMetrics}
+            applications={opportunityApplications}
             loading={coreLoading}
             onVerify={handleVerifyAlumni}
             onReject={handleRejectAlumni}
+            onSetAccountActive={handleAdminAccountActive}
             onOpenSeniorForm={() => setActiveTab('senior-form')}
+            onUpdateApplicationStatus={handleUpdateApplicationStatus}
+            onDownloadApplicationResume={handleDownloadApplicationResume}
+            onDownloadStudentResume={handleDownloadStudentResume}
           />
         )}
 
