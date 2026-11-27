@@ -492,16 +492,32 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
               className="pointer-events-none absolute inset-0 z-[35]"
             />
 
-            {/* Real Login / Sign-up screen fading in inside the doorway light */}
+            {/* Real Login / Sign-up screen fading in inside the doorway light (illustration left, form right) */}
             <div
               data-gate-login-overlay="true"
               style={{
                 opacity: reducedMotion ? 1 : 0,
                 pointerEvents: reducedMotion ? 'auto' : 'none',
               }}
-              className="absolute inset-x-0 bottom-0 h-screen z-40 flex items-center justify-center pt-20 pb-6 px-4 overflow-y-auto"
+              className="absolute inset-x-0 bottom-0 h-screen z-40 overflow-y-auto bg-[#FAF7F0]"
             >
-              {gateAuthSlot ?? <FallbackGateLogin onOpenAuth={onOpenAuth} />}
+              <img
+                src="/assets/aistudio/24506908-d5d7-4763-8b9b-3051f12b91ef_71482280.png"
+                alt="PARTHA guiding your journey chariot illustration"
+                loading="lazy"
+                decoding="async"
+                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-left md:object-center"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[#FAF7F0]/75 backdrop-blur-[2px] md:bg-gradient-to-r md:from-transparent md:via-[#FAF7F0]/25 md:to-[#FAF7F0]/70 md:backdrop-blur-none"
+              />
+              <div
+                data-gate-login-align="true"
+                className="relative z-10 mx-auto flex min-h-full w-full max-w-[1380px] items-center justify-center md:justify-end px-4 pt-20 pb-8 sm:px-8 md:px-10 lg:px-14 xl:px-20"
+              >
+                {gateAuthSlot ?? <FallbackGateLogin onOpenAuth={onOpenAuth} />}
+              </div>
             </div>
           </section>
         </main>

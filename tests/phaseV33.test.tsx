@@ -149,6 +149,12 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
     const loginOverlay = gateSection.querySelector('[data-gate-login-overlay="true"]') as HTMLElement;
     expect(loginOverlay.style.opacity).toBe('0');
     expect(loginOverlay.textContent).toContain('Real Auth Screen');
+    expect(loginOverlay.querySelector('img')?.getAttribute('src')).toBe(
+      '/assets/aistudio/24506908-d5d7-4763-8b9b-3051f12b91ef_71482280.png',
+    );
+    expect(
+      loginOverlay.querySelector('[data-gate-login-align="true"]')?.className,
+    ).toContain('md:justify-end');
   });
 
   it('under reduced motion, shows open Gate doors and login screen immediately', async () => {
