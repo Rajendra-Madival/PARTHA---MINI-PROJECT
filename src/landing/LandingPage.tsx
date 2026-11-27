@@ -19,6 +19,7 @@ import { useReducedMotion } from './motion/useReducedMotion';
 import { ArrowsPathOverlay } from './components/ArrowsPathOverlay';
 import { HeroBowOverlay } from './components/HeroBowController';
 import { Navbar } from './components/Navbar';
+import { ParthaWordmark } from './components/ParthaWordmark';
 import { SceneBackdrop } from './components/SceneBackdrop';
 import { GateArtworkStage, SceneProps } from './components/SceneProps';
 import { StepCard } from './components/StepCard';
@@ -314,8 +315,11 @@ export function LandingPage({
             </div>
 
             <div className="relative z-30 max-w-3xl mx-auto text-center flex flex-col items-center rounded-3xl px-4 sm:px-5 py-2.5 sm:py-4 bg-[radial-gradient(ellipse_at_center,rgba(250,247,240,0.78)_0%,rgba(250,247,240,0.42)_55%,rgba(250,247,240,0)_85%)]">
-              <h1 id="hero-heading" className="v3-hero-title font-bold mb-1.5 sm:mb-3 max-sm:!text-[3.1rem]">
-                {COPY.hero.title}
+              <h1 id="hero-heading" className="v3-hero-title font-bold mb-2 sm:mb-3.5 flex justify-center">
+                <ParthaWordmark
+                  className="h-[3.2rem] sm:h-[5.4rem] md:h-[6.2rem] w-auto max-w-full"
+                  label={COPY.hero.title}
+                />
               </h1>
 
               <p className="font-[var(--font-landing-display)] text-xl sm:text-3xl md:text-4xl text-[var(--c-forest-900)] font-semibold mb-1 sm:mb-2 max-w-2xl leading-tight">

@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { COPY, type SectionMode } from '../content/copy';
 import { scrollToTarget } from '../motion/lenis';
+import { ParthaWordmark } from './ParthaWordmark';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -69,13 +70,14 @@ export function Navbar({
             e.preventDefault();
             scrollToTarget('#scene-hero', { duration: 1.2 });
           }}
+          aria-label={COPY.brand.name}
           className={[
             'inline-flex items-center min-h-[44px] px-2 -ml-2 rounded-lg no-underline transition-colors duration-200',
             'v3-brand-wordmark text-2xl sm:text-3xl font-bold tracking-[0.08em]',
             isDark ? 'text-[var(--c-ivory)]' : 'text-[var(--c-forest-900)]',
           ].join(' ')}
         >
-          {COPY.brand.name}
+          <ParthaWordmark className="h-[22px] sm:h-[26px] w-auto" label={COPY.brand.name} />
         </a>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
