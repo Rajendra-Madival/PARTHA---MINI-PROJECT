@@ -9,6 +9,7 @@ import { MentorshipModal } from './components/MentorshipModal';
 import { Navbar, type ActiveTab } from './components/Navbar';
 import { OpportunitiesFeedView } from './components/OpportunitiesFeedView';
 import { ParthaLandingPage } from './components/ParthaLandingPage';
+import { LandingPage } from './landing/LandingPage';
 import { PostModal } from './components/PostModal';
 import { ProfileDetailsView } from './components/ProfileDetailsView';
 import { SeniorIntakeFormPanel } from './components/SeniorIntakeFormPanel';
@@ -717,18 +718,15 @@ export default function App() {
   }, [opportunitiesData.domains, guidesData.domains]);
 
   if (!user) {
-    return (
-      <ParthaLandingPage>
-        <AuthScreen
-          dbHealth={dbHealth}
-          bootstrapStatus={bootstrapStatus}
-          checkingConnection={checkingConnection}
-          onRetryHealth={checkHealthAndBootstrap}
-          onAuthenticated={handleAuthenticated}
-          embedded
-        />
-      </ParthaLandingPage>
-    );
+    // Keep ParthaLandingPage and AuthScreen intact in the repo while mounting src/landing/ at root for logged-out users (Phase 0)
+    void ParthaLandingPage;
+    void AuthScreen;
+    void dbHealth;
+    void bootstrapStatus;
+    void checkingConnection;
+    void checkHealthAndBootstrap;
+    void handleAuthenticated;
+    return <LandingPage />;
   }
 
   const selectedAlumni =
