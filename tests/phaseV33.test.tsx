@@ -112,7 +112,7 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
     expect(container.querySelector('[data-hero-bow-trigger="true"]')).toBeNull();
   });
 
-  it('keeps sage & chariot visible immediately and keeps extra floating boxes removed', async () => {
+  it('keeps sage & chariot visible, removes Kurukshetra wheel & floating boxes, and starts lotus closed', async () => {
     setupDomStubs({ reducedMotion: false, width: 1440 });
     const { LandingPage } = await import('../src/landing/LandingPage');
     const { container } = render(<LandingPage />);
@@ -122,10 +122,16 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
     expect(sage.className).not.toContain('opacity-0');
     expect(chariot.className).not.toContain('opacity-0');
 
+    expect(container.querySelector('[data-prop="wheel"]')).toBeNull();
     expect(container.querySelector('[data-kurukshetra-torches]')).toBeNull();
     expect(container.querySelector('[data-dawn-scrolls]')).toBeNull();
     expect(container.querySelector('[data-alumni-diya]')).toBeNull();
     expect(container.querySelector('[data-step-card="gate"]')).toBeNull();
+
+    const lotusBud = container.querySelector('[data-prop="lotus-bud"]') as HTMLElement;
+    const lotusOpen = container.querySelector('[data-prop="lotus-open"]') as HTMLElement;
+    expect(lotusBud.style.opacity).toBe('1');
+    expect(lotusOpen.style.opacity).toBe('0');
   });
 
   it('removes sky buttons above Gate and fades in gateAuthSlot inside the doorway flash', async () => {

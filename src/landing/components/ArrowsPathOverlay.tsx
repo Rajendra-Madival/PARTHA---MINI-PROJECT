@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { COPY } from '../content/copy';
+import { COPY, type StoryWaypointScene } from '../content/copy';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -10,6 +10,7 @@ interface ArrowsPathOverlayProps {
   reducedMotion: boolean;
   hasShot?: boolean;
   onActiveStopsChange: (litStops: boolean[]) => void;
+  onActiveSceneChange?: (sceneId: StoryWaypointScene['id'] | null) => void;
 }
 
 interface LightBandRect {
@@ -41,20 +42,20 @@ function buildBowAndCurvePath(
   // Segment 0: straight bow shot forward into the open sky
   let d = `M ${origin.x.toFixed(1)} ${origin.y.toFixed(1)} L ${launchPt.x.toFixed(1)} ${launchPt.y.toFixed(1)}`;
 
-  // Segment 1: C1-smooth transition from straight flight bending down toward Stop 1
+  // Segment 1: C1-smooth, broad sweeping curve from the straight sky shot down to Stop 1
   const dx0 = launchPt.x - origin.x;
   const dy0 = launchPt.y - origin.y;
   const len0 = Math.hypot(dx0, dy0) || 1;
   const ux = dx0 / len0;
   const uy = dy0 / len0;
-  const tangentLead = isMobile ? 56 : Math.min(160, len0 * 0.48);
+  const tangentLead = isMobile ? 42 : Math.min(72, len0 * 0.18);
 
   const firstStop = stops[0];
   const dy1 = firstStop.y - launchPt.y;
   const c1x = launchPt.x + ux * tangentLead;
   const c1y = launchPt.y + uy * tangentLead;
-  const c2x = firstStop.x;
-  const c2y = firstStop.y - dy1 * 0.45;
+  const c2x = isMobile ? firstStop.x : firstStop.x + (launchPt.x - firstStop.x) * 0.14;
+  const c2y = firstStop.y - dy1 * 0.52;
   d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${firstStop.x.toFixed(1)} ${firstStop.y.toFixed(1)}`;
 
   if (isMobile) {
@@ -109,6 +110,7 @@ export function ArrowsPathOverlay({
   reducedMotion,
   hasShot = false,
   onActiveStopsChange,
+  onActiveSceneChange,
 }: ArrowsPathOverlayProps) {
   const pathRef = useRef<SVGPathElement | null>(null);
   const brownEdgeRef = useRef<SVGPathElement | null>(null);
@@ -140,21 +142,24 @@ export function ArrowsPathOverlay({
   }>({
     totalLength: 0,
     thresholds: [0.24, 0.42, 0.6, 0.78, 0.96],
-    launchProgress: 0.08,
+    launchProgress: 0.1,
     endX: 0,
     endY: 0,
     endAngle: 90,
     reducedMotion,
   });
 
-  const shotProgressRef = useRef<number>(reducedMotion || hasShot ? 0.08 : 0);
+  const shotProgressRef = useRef<number>(0);
   const scrollProgressRef = useRef<number>(0);
-  const hasShotRef = useRef<boolean>(reducedMotion || hasShot);
-  hasShotRef.current = reducedMotion || hasShot;
+  const scrollEngagedRef = useRef<boolean>(false);
+  const shotTweenRef = useRef<gsap.core.Tween | null>(null);
 
   const lastLitMaskRef = useRef<string>('');
+  const lastActiveSceneRef = useRef<StoryWaypointScene['id'] | null>(null);
   const onActiveStopsChangeRef = useRef(onActiveStopsChange);
   onActiveStopsChangeRef.current = onActiveStopsChange;
+  const onActiveSceneChangeRef = useRef(onActiveSceneChange);
+  onActiveSceneChangeRef.current = onActiveSceneChange;
 
   const updateLitStops = useCallback((progress: number, thresholds: number[], isReduced: boolean) => {
     const next = isReduced
@@ -164,6 +169,25 @@ export function ArrowsPathOverlay({
     if (mask !== lastLitMaskRef.current) {
       lastLitMaskRef.current = mask;
       onActiveStopsChangeRef.current(next);
+    }
+
+    if (isReduced) return;
+
+    // Auto-open Stops 1..4 cards when the arrow arrives and collapse when scrolling away
+    let activeScene: StoryWaypointScene['id'] | null = null;
+    for (let i = 0; i < 4; i += 1) {
+      const t = thresholds[i] ?? 1;
+      const enter = Math.max(0.02, t - 0.025);
+      const leave = Math.min((thresholds[i + 1] ?? 1) - 0.035, t + 0.095);
+      if (progress >= enter && progress <= leave) {
+        activeScene = COPY.waypoints[i].id;
+        break;
+      }
+    }
+
+    if (activeScene !== lastActiveSceneRef.current) {
+      lastActiveSceneRef.current = activeScene;
+      onActiveSceneChangeRef.current?.(activeScene);
     }
   }, []);
 
@@ -194,7 +218,11 @@ export function ArrowsPathOverlay({
       return;
     }
 
-    const effective = Math.min(1, Math.max(shotProgressRef.current, scrollProgressRef.current));
+    // Once scrolling has moved down the path, scrolling back up returns the arrow smoothly to the bow (0)
+    const effective = scrollEngagedRef.current
+      ? Math.min(1, Math.max(0, scrollProgressRef.current))
+      : Math.min(1, Math.max(shotProgressRef.current, scrollProgressRef.current));
+
     const drawn = totalLength * effective;
     applyDash(Math.max(0, totalLength - drawn));
 
@@ -239,15 +267,15 @@ export function ArrowsPathOverlay({
     const originPt = toPoint(originEl);
     const stopPts = stopEls.map(toPoint);
 
-    // Launch straight out in the air from Rama's bow before curving downward
+    // Extend further right into the open sky before beginning the graceful curve down
     const launchPt = isMobile
       ? {
-          x: Math.min(width - 42, originPt.x + Math.max(90, width * 0.32)),
+          x: Math.min(width - 42, originPt.x + Math.max(105, width * 0.36)),
           y: originPt.y - 10,
         }
       : {
-          x: Math.min(width - 96, originPt.x + Math.max(220, width * 0.27)),
-          y: originPt.y - Math.round(Math.min(24, width * 0.015)),
+          x: Math.min(width - 72, originPt.x + Math.max(280, width * 0.36)),
+          y: originPt.y - Math.round(Math.min(20, width * 0.012)),
         };
 
     const d = buildBowAndCurvePath(originPt, launchPt, stopPts, isMobile);
@@ -294,8 +322,8 @@ export function ArrowsPathOverlay({
 
     const launchProgress =
       totalLength > 0 && geometry.launchPt
-        ? Math.max(0.03, findClosestProgress(pathEl, totalLength, geometry.launchPt))
-        : 0.08;
+        ? Math.max(0.04, findClosestProgress(pathEl, totalLength, geometry.launchPt))
+        : 0.1;
 
     const thresholds =
       totalLength > 0 && stopEls.length > 0
@@ -329,10 +357,6 @@ export function ArrowsPathOverlay({
       reducedMotion,
     };
 
-    if (hasShotRef.current && shotProgressRef.current < launchProgress) {
-      shotProgressRef.current = launchProgress;
-    }
-
     const st = ScrollTrigger.getById('arrows-path-scroll');
     scrollProgressRef.current = st ? st.progress : 0;
 
@@ -349,33 +373,36 @@ export function ArrowsPathOverlay({
     syncVisuals,
   ]);
 
-  // Animate the single arrow straight out from Rama's bow into the sky when fired
+  // Animate the single arrow straight out from Rama's bow when fired at the top
   useEffect(() => {
-    if (reducedMotion || !hasShot) return;
+    if (reducedMotion || !hasShot || scrollEngagedRef.current) return;
 
-    const target = metricsRef.current.launchProgress || 0.08;
+    const target = metricsRef.current.launchProgress || 0.1;
     if (shotProgressRef.current >= target) {
       syncVisuals();
       return;
     }
 
     const proxy = { p: shotProgressRef.current };
-    const tween = gsap.to(proxy, {
+    shotTweenRef.current?.kill();
+    shotTweenRef.current = gsap.to(proxy, {
       p: target,
       duration: 0.55,
       ease: 'power2.out',
       onUpdate: () => {
+        if (scrollEngagedRef.current) return;
         shotProgressRef.current = proxy.p;
         syncVisuals();
       },
       onComplete: () => {
+        if (scrollEngagedRef.current) return;
         shotProgressRef.current = target;
         syncVisuals();
       },
     });
 
     return () => {
-      tween.kill();
+      shotTweenRef.current?.kill();
     };
   }, [hasShot, reducedMotion, syncVisuals]);
 
@@ -425,7 +452,16 @@ export function ArrowsPathOverlay({
         scrub: 0.5,
         invalidateOnRefresh: true,
         onUpdate: (self) => {
-          scrollProgressRef.current = Math.min(Math.max(self.progress, 0), 1);
+          const p = Math.min(Math.max(self.progress, 0), 1);
+          scrollProgressRef.current = p;
+
+          // Hand full bidirectional control to scroll once visitor scrolls past the launch segment
+          if (p >= metricsRef.current.launchProgress * 0.65) {
+            scrollEngagedRef.current = true;
+            shotTweenRef.current?.kill();
+            shotProgressRef.current = 0;
+          }
+
           syncVisuals();
         },
       });

@@ -4,13 +4,11 @@ import type { SceneArtworkConfig } from '../content/scenes';
 export function SceneProps({
   config,
   eager = false,
-  arrived = false,
   reducedMotion = false,
   ramaPose = 'ready',
 }: {
   config: SceneArtworkConfig;
   eager?: boolean;
-  arrived?: boolean;
   reducedMotion?: boolean;
   ramaPose?: 'ready' | 'draw';
 }) {
@@ -55,8 +53,6 @@ export function SceneProps({
   if (config.gate) {
     return <GateArtworkStage config={config} eager={eager} reducedMotion={reducedMotion} />;
   }
-
-  const isLotusBloomed = arrived || reducedMotion;
 
   return (
     <div
@@ -139,32 +135,29 @@ export function SceneProps({
                 loading="eager"
                 decoding={prop.eager || eager ? 'sync' : 'async'}
                 fetchPriority={prop.eager || eager ? 'high' : undefined}
-                className={[
-                  'pointer-events-none absolute select-none',
-                  isLotus ? 'transition-opacity duration-700 ease-out' : '',
-                  isLotus && isLotusBloomed ? 'opacity-0' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={propStyle}
+                className="pointer-events-none absolute select-none"
+                style={{
+                  ...propStyle,
+                  opacity: isLotus ? (reducedMotion ? 0 : 1) : undefined,
+                }}
               />
 
               {/* Dawn Lake opened lotus crossfade in identical 641x1000 union box */}
               {isLotus && prop.preloadExtraSrc && (
                 <img
                   data-prop="lotus-open"
-                  data-lotus-bloomed={isLotusBloomed ? 'true' : 'false'}
+                  data-lotus-bloomed={reducedMotion ? 'true' : 'false'}
                   src={prop.preloadExtraSrc}
                   width={prop.width}
                   height={prop.height}
                   alt=""
                   loading="eager"
                   decoding="async"
-                  className={[
-                    'pointer-events-none absolute select-none transition-opacity duration-700 ease-out',
-                    isLotusBloomed ? 'opacity-100' : 'opacity-0',
-                  ].join(' ')}
-                  style={propStyle}
+                  className="pointer-events-none absolute select-none"
+                  style={{
+                    ...propStyle,
+                    opacity: reducedMotion ? 1 : 0,
+                  }}
                 />
               )}
             </Fragment>

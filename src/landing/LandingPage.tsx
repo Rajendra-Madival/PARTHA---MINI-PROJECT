@@ -69,10 +69,6 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
   const [litStops, setLitStops] = useState<boolean[]>(() =>
     COPY.waypoints.map(() => reducedMotion),
   );
-  const [arrivedScenes, setArrivedScenes] = useState<Record<string, boolean>>(() => {
-    if (!reducedMotion) return {};
-    return Object.fromEntries(COPY.waypoints.map((w) => [w.id, true]));
-  });
   const [expandedStopId, setExpandedStopId] = useState<StoryWaypointScene['id'] | null>(null);
 
   const [ramaPose, setRamaPose] = useState<'ready' | 'draw'>('ready');
@@ -181,19 +177,45 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
     return () => ctx.revert();
   }, [reducedMotion]);
 
+  // Scene 4 (The Dawn Lake): lotus starts closed (lotus-bud) and blooms open as you scroll past
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || reducedMotion) return;
+
+    const lakeEl = container.querySelector<HTMLElement>('#scene-dawn-lake');
+    if (!lakeEl) return;
+
+    const ctx = gsap.context(() => {
+      ScrollTrigger.create({
+        id: 'dawn-lake-lotus-bloom',
+        trigger: lakeEl,
+        start: 'top 58%',
+        end: 'top 22%',
+        scrub: 0.4,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          if (lakeEl.getBoundingClientRect().height === 0) return;
+          const p = Math.min(Math.max(self.progress, 0), 1);
+          const budEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-bud"]');
+          const openEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-open"]');
+          if (budEl) budEl.style.opacity = String((1 - p).toFixed(3));
+          if (openEl) {
+            openEl.style.opacity = String(p.toFixed(3));
+            openEl.dataset.lotusBloomed = p >= 0.5 ? 'true' : 'false';
+          }
+        },
+      });
+    }, lakeEl);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
   const handleLitStopsChange = useCallback((nextLit: boolean[]) => {
     setLitStops(nextLit);
-    setArrivedScenes((prev) => {
-      let changed = false;
-      const updated = { ...prev };
-      COPY.waypoints.forEach((wp, idx) => {
-        if (nextLit[idx] && !updated[wp.id]) {
-          updated[wp.id] = true;
-          changed = true;
-        }
-      });
-      return changed ? updated : prev;
-    });
+  }, []);
+
+  const handleActiveSceneChange = useCallback((activeSceneId: StoryWaypointScene['id'] | null) => {
+    setExpandedStopId(activeSceneId);
   }, []);
 
   const handleToggleCard = useCallback((id: StoryWaypointScene['id']) => {
@@ -209,7 +231,6 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
       }
     }
     scrollToTarget(`#scene-${scene.id}`, { duration: 1.4 });
-    setArrivedScenes((prev) => (prev[scene.id] ? prev : { ...prev, [scene.id]: true }));
     setExpandedStopId(scene.id);
   }, []);
 
@@ -241,6 +262,7 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
           reducedMotion={reducedMotion}
           hasShot={hasHeroShot}
           onActiveStopsChange={handleLitStopsChange}
+          onActiveSceneChange={handleActiveSceneChange}
         />
 
         <main id="main-content" tabIndex={-1}>
@@ -314,7 +336,6 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
           {/* Scenes 1 to 4: Ashram, Bridge, Kurukshetra, Dawn Lake inside 16:9 Art Boxes with 12vh blends */}
           {storyWaypoints.map((scene, idx) => {
             const isLit = reducedMotion || Boolean(litStops[idx]);
-            const isArrived = reducedMotion || Boolean(arrivedScenes[scene.id]);
             const isExpanded = expandedStopId === scene.id;
             const art = SCENE_ARTWORKS[scene.id];
             const layerZIndex = idx + 2; // 2, 3, 4, 5
@@ -349,7 +370,6 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
                 >
                   <SceneProps
                     config={art}
-                    arrived={isArrived}
                     reducedMotion={reducedMotion}
                   />
                 </SceneBackdrop>

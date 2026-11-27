@@ -198,16 +198,6 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         yPercent: 80,
         widthPercent: 38,
       },
-      {
-        id: 'wheel',
-        name: 'wheel',
-        src: '/landing/art/wheel.webp',
-        width: 640,
-        height: 640,
-        xPercent: 86,
-        yPercent: 82,
-        widthPercent: 12,
-      },
     ],
   },
   'dawn-lake': {
