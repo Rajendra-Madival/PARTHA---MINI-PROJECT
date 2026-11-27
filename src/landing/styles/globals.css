@@ -1,10 +1,9 @@
 @layer base {
-  .partha-landing-v1 {
+  .partha-landing-v3 {
     margin: 0;
     min-height: 100vh;
-    background: var(--grad-bg);
-    background-color: var(--c-night-0);
-    color: var(--c-ivory);
+    background-color: var(--c-brand-white);
+    color: var(--c-ink);
     font-family: var(--font-landing-body);
     font-size: 16px;
     line-height: 1.6;
@@ -13,112 +12,71 @@
     overflow-x: clip;
   }
 
-  .partha-landing-v1 h1,
-  .partha-landing-v1 h2,
-  .partha-landing-v1 h3,
-  .partha-landing-v1 h4 {
+  .partha-landing-v3 h1,
+  .partha-landing-v3 h2,
+  .partha-landing-v3 h3 {
     font-family: var(--font-landing-display);
     margin: 0;
   }
 
-  .partha-landing-v1 [data-section-mode="dark"] h1,
-  .partha-landing-v1 [data-section-mode="dark"] h2,
-  .partha-landing-v1 [data-section-mode="dark"] h3,
-  .partha-landing-v1 [data-section-mode="dark"] h4 {
-    color: var(--c-ivory);
+  .partha-landing-v3 [data-section-mode="light"] {
+    color: var(--c-ink);
   }
 
-  .partha-landing-v1 [data-section-mode="light"] h1,
-  .partha-landing-v1 [data-section-mode="light"] h2,
-  .partha-landing-v1 [data-section-mode="light"] h3,
-  .partha-landing-v1 [data-section-mode="light"] h4 {
+  .partha-landing-v3 [data-section-mode="light"] h1,
+  .partha-landing-v3 [data-section-mode="light"] h2,
+  .partha-landing-v3 [data-section-mode="light"] h3 {
     color: var(--c-forest-900);
   }
 
-  .partha-landing-v1 p {
-    max-width: 68ch;
+  .partha-landing-v3 [data-section-mode="dark"] {
+    color: var(--c-ivory);
   }
 
-  /* Keep sections after the fixed Hero scene stacked cleanly above #hero */
-  .partha-landing-v1 main#main-content > section:not(#hero),
-  .partha-landing-v1 footer#footer {
-    position: relative;
-    z-index: 10;
+  .partha-landing-v3 [data-section-mode="dark"] h1,
+  .partha-landing-v3 [data-section-mode="dark"] h2,
+  .partha-landing-v3 [data-section-mode="dark"] h3 {
+    color: var(--c-ivory);
   }
 
-  /* Mode-aware accessible focus rings (v2 Section 4.3 & Section 8) */
-  .partha-landing-v1 [data-section-mode="dark"] :where(a, button, input, textarea, select, [tabindex]):focus-visible,
-  .partha-landing-v1 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-    outline: 2px solid var(--c-focus);
-    outline-offset: 2px;
-    box-shadow: none;
-  }
-
-  .partha-landing-v1 [data-section-mode="light"] :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  /* Accessible focus rings in light and dark scenes */
+  .partha-landing-v3 [data-section-mode="light"] :where(a, button, input, textarea, select, [tabindex]):focus-visible {
     outline: 2px solid var(--c-forest-900);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px var(--c-gold);
   }
+
+  .partha-landing-v3 [data-section-mode="dark"] :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
 }
 
-/* Typography helpers matching v1 4.2 scale + v2 4.4 Cormorant Garamond & Montserrat */
-.partha-landing-v1 .font-display-epic {
+/* Typography helpers */
+.partha-landing-v3 .v3-hero-title {
   font-family: var(--font-landing-display);
+  font-size: clamp(3.75rem, 8.5vw, 6.25rem);
+  line-height: 1.02;
+  letter-spacing: 0.06em;
+  color: var(--c-forest-900);
 }
 
-.partha-landing-v1 .text-hero-title {
+.partha-landing-v3 .v3-scene-heading {
   font-family: var(--font-landing-display);
-  font-size: clamp(3.5rem, 8vw, 6rem); /* 56px mobile -> 96px desktop */
-  letter-spacing: 0.08em;
-  line-height: 1.05;
-  background: var(--grad-gold);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.12;
+  letter-spacing: 0.01em;
 }
 
-.partha-landing-v1 .text-section-h2 {
+.partha-landing-v3 .v3-step-title {
   font-family: var(--font-landing-display);
-  font-size: clamp(2.25rem, 4.5vw, 3.5rem); /* 36px mobile -> 56px desktop */
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-}
-
-.partha-landing-v1 .text-card-h3 {
-  font-family: var(--font-landing-display);
-  font-size: clamp(1.375rem, 2.2vw, 1.625rem);
+  font-size: clamp(1.375rem, 2.2vw, 1.75rem);
   line-height: 1.25;
 }
 
-.partha-landing-v1 .text-body-copy {
-  font-family: var(--font-landing-body);
-  font-size: clamp(1rem, 1.2vw, 1.125rem); /* 16px mobile -> 18px desktop */
-  line-height: 1.6;
-}
-
-.partha-landing-v1 .text-meta {
-  font-family: var(--font-landing-body);
-  font-size: clamp(0.8125rem, 1vw, 0.875rem); /* 13px -> 14px */
-}
-
-.partha-landing-v1 .font-devanagari {
-  font-family: var(--font-landing-devanagari);
-}
-
-.partha-landing-v1 .font-mixed {
-  font-family: var(--font-landing-mixed);
-}
-
-/* 1px gold divider at 40% opacity */
-.partha-landing-v1 .gold-divider {
-  height: 1px;
-  width: 100%;
-  background: rgba(212, 175, 55, 0.4);
-  border: 0;
-}
-
-/* Skip to content link (Section 8) */
-.partha-landing-v1 .skip-link {
+/* Skip to content link */
+.partha-landing-v3 .skip-link {
   position: fixed;
   top: -100px;
   left: 16px;
@@ -127,7 +85,7 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  background: var(--c-night-0);
+  background: var(--c-forest-900);
   color: var(--c-ivory);
   border: 2px solid var(--c-focus);
   border-radius: 8px;
@@ -136,141 +94,56 @@
   transition: top 180ms ease;
 }
 
-.partha-landing-v1 .skip-link:focus {
+.partha-landing-v3 .skip-link:focus {
   top: 16px;
 }
 
-/* Subtle paper grain overlay at 5% opacity */
-.partha-landing-v1 .paper-grain-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-}
-
-/* Gold-leaf frame for Highlight cards and Testimonial frames (v2 Section 4.6 & 10) */
-.partha-landing-v1 .gold-leaf-frame {
+/* Six CSS placeholder scene backdrop gradients */
+.partha-landing-v3 .v3-backdrop-dawn {
   background:
-    linear-gradient(180deg, rgba(255, 254, 250, 0.96), rgba(250, 247, 240, 0.94)) padding-box,
-    linear-gradient(135deg, rgba(212, 175, 55, 0.85), rgba(140, 106, 59, 0.55), rgba(244, 162, 27, 0.78)) border-box;
-  border: 1.5px solid transparent;
-  box-shadow: 0 12px 32px -18px rgba(20, 56, 42, 0.18);
+    radial-gradient(circle at 22% 24%, rgba(244, 162, 27, 0.16) 0%, transparent 48%),
+    radial-gradient(circle at 78% 72%, rgba(30, 77, 59, 0.09) 0%, transparent 52%),
+    linear-gradient(180deg, var(--c-brand-white) 0%, var(--c-ivory) 55%, var(--c-brand-green) 100%);
 }
 
-/* Parchment manuscript surface for testimonials (v2 Section 4.6 & 6.6) */
-.partha-landing-v1 .parchment-card {
-  background-color: var(--c-parchment);
-  color: var(--c-ink);
-  border: 1.5px solid var(--c-forest);
-  background-image:
-    radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.16), transparent 55%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.06'/%3E%3C/svg%3E");
+.partha-landing-v3 .v3-backdrop-warm-gold {
+  background:
+    radial-gradient(circle at 72% 45%, rgba(212, 175, 55, 0.22) 0%, transparent 54%),
+    linear-gradient(180deg, var(--c-brand-green) 0%, var(--c-brand-white) 32%, var(--c-parchment) 78%, #EADBB5 100%);
 }
 
-/* Login glassmorphism card (v2 Section 6.7) */
-.partha-landing-v1 .gate-glass-card {
-  background: rgba(27, 31, 75, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 20px;
+.partha-landing-v3 .v3-backdrop-dusk {
+  background:
+    radial-gradient(circle at 28% 20%, rgba(181, 101, 43, 0.24) 0%, transparent 52%),
+    linear-gradient(180deg, var(--c-forest-900) 0%, var(--c-forest) 26%, var(--c-night-1) 76%, #13173C 100%);
 }
 
-/* Mode-aware button variants */
-.partha-landing-v1 [data-section-mode="dark"] .landing-btn-ghost {
-  color: var(--c-ivory);
-  background: transparent;
-  border-color: transparent;
-}
-.partha-landing-v1 [data-section-mode="dark"] .landing-btn-ghost:hover {
-  background: rgba(212, 175, 55, 0.12);
-  border-color: rgba(212, 175, 55, 0.35);
+.partha-landing-v3 .v3-backdrop-night {
+  background:
+    radial-gradient(circle at 72% 48%, rgba(244, 162, 27, 0.14) 0%, transparent 50%),
+    linear-gradient(180deg, #13173C 0%, var(--c-night-0) 45%, var(--c-night-1) 85%, #222B5B 100%);
 }
 
-.partha-landing-v1 [data-section-mode="light"] .landing-btn-ghost {
-  color: var(--c-forest-900);
-  background: transparent;
-  border-color: transparent;
-}
-.partha-landing-v1 [data-section-mode="light"] .landing-btn-ghost:hover {
-  background: rgba(20, 56, 42, 0.08);
-  border-color: rgba(20, 56, 42, 0.25);
+.partha-landing-v3 .v3-backdrop-mint-gold {
+  background:
+    radial-gradient(circle at 30% 48%, rgba(212, 175, 55, 0.18) 0%, transparent 50%),
+    linear-gradient(180deg, var(--c-brand-green) 0%, #F2FAF2 48%, var(--c-brand-white) 100%);
 }
 
-.partha-landing-v1 [data-section-mode="dark"] .landing-btn-outline {
-  color: var(--c-ivory);
-  background: rgba(27, 31, 75, 0.45);
-  border-color: rgba(212, 175, 55, 0.45);
-}
-.partha-landing-v1 [data-section-mode="dark"] .landing-btn-outline:hover {
-  border-color: var(--c-saffron);
-  background: rgba(38, 43, 99, 0.7);
+.partha-landing-v3 .v3-backdrop-bright-gold {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(244, 162, 27, 0.2) 0%, transparent 56%),
+    linear-gradient(180deg, var(--c-brand-white) 0%, var(--c-parchment) 52%, var(--c-brand-green) 100%);
 }
 
-.partha-landing-v1 [data-section-mode="light"] .landing-btn-outline {
-  color: var(--c-forest-900);
-  background: rgba(255, 254, 250, 0.85);
-  border-color: rgba(20, 56, 42, 0.35);
-}
-.partha-landing-v1 [data-section-mode="light"] .landing-btn-outline:hover {
-  border-color: var(--c-forest-900);
-  background: var(--c-brand-green);
+/* Primary CTA button (WCAG AA dark ink on saffron-marigold) */
+.partha-landing-v3 .v3-btn-primary {
+  background: linear-gradient(135deg, var(--c-saffron), var(--c-marigold));
+  color: var(--c-night-0);
+  font-weight: 600;
+  box-shadow: 0 10px 26px -12px rgba(181, 101, 43, 0.55);
 }
 
-/* Slow pulse animation for scroll cue */
-@keyframes chakraPulse {
-  0%, 100% {
-    opacity: 0.65;
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(4px) scale(1.06);
-  }
-}
-
-.partha-landing-v1 .animate-chakra-pulse {
-  animation: chakraPulse 2.8s ease-in-out infinite;
-}
-
-/* Diya particle drift */
-@keyframes diyaDrift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(0.8);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.75;
-  }
-  85% {
-    opacity: 0.55;
-  }
-  100% {
-    transform: translate3d(var(--drift-x, 14px), -140px, 0) scale(1.1);
-    opacity: 0;
-  }
-}
-
-.partha-landing-v1 .diya-particle {
-  animation: diyaDrift var(--drift-duration, 9s) linear infinite;
-  animation-delay: var(--drift-delay, 0s);
-}
-
-/* Hide scrollbars cleanly */
-.partha-landing-v1 .no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.partha-landing-v1 .no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .partha-landing-v1 .animate-chakra-pulse,
-  .partha-landing-v1 .diya-particle {
-    animation: none !important;
-  }
+.partha-landing-v3 .v3-btn-primary:hover {
+  filter: brightness(1.04);
 }

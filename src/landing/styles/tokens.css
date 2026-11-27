@@ -1,5 +1,5 @@
 /*
- * PARTHA Landing v2 Epic Palette + Real App Brand Bridge
+ * PARTHA V3 Epic Palette + Real App Brand Bridge
  * Registered through Tailwind 4 @theme using prefixed --c-* tokens so
  * existing app tokens (--background, --primary, --font-display, etc.) stay untouched.
  */
@@ -37,13 +37,8 @@
   --c-brand-green: #ECFDF5;
 }
 
-.partha-landing-v1 {
-  --grad-cta: linear-gradient(135deg, var(--c-saffron), var(--c-marigold));
-  --grad-bg: linear-gradient(180deg, var(--c-night-0) 0%, var(--c-night-1) 70%, var(--c-forest) 100%);
-  --grad-gold: linear-gradient(135deg, #FFF6E3 0%, #D4AF37 45%, #F4A21B 100%);
-
+.partha-landing-v3 {
   --font-landing-display: 'Cormorant Garamond', Georgia, serif;
   --font-landing-devanagari: 'Noto Serif Devanagari', Georgia, serif;
   --font-landing-body: 'Montserrat', system-ui, -apple-system, sans-serif;
-  --font-landing-mixed: 'Noto Serif Devanagari', 'Montserrat', system-ui, sans-serif;
 }

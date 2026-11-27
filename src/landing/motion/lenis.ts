@@ -6,13 +6,23 @@ gsap.registerPlugin(ScrollTrigger);
 
 let activeLenis: Lenis | null = null;
 
+export interface ScrollTargetOptions {
+  duration?: number;
+  offset?: number;
+}
+
 export function getLenis(): Lenis | null {
   return activeLenis;
 }
 
-export function scrollToTarget(target: string | HTMLElement): void {
+export function scrollToTarget(
+  target: string | HTMLElement,
+  options: ScrollTargetOptions = {},
+): void {
+  const { duration = 1.4, offset = 0 } = options;
+
   if (activeLenis) {
-    activeLenis.scrollTo(target, { offset: 0, duration: 1.1 });
+    activeLenis.scrollTo(target, { offset, duration });
     return;
   }
 
@@ -27,14 +37,17 @@ export function initScrollEngine(reducedMotion: boolean): () => void {
     ScrollTrigger.refresh();
     return () => {
       activeLenis = null;
+      for (const trigger of ScrollTrigger.getAll()) {
+        trigger.kill();
+      }
     };
   }
 
   const lenis = new Lenis({
-    duration: 1.15,
+    duration: 1.2,
     smoothWheel: true,
     wheelMultiplier: 1,
-    touchMultiplier: 1.5,
+    touchMultiplier: 1.4,
   });
 
   activeLenis = lenis;
@@ -53,6 +66,9 @@ export function initScrollEngine(reducedMotion: boolean): () => void {
     lenis.destroy();
     if (activeLenis === lenis) {
       activeLenis = null;
+    }
+    for (const trigger of ScrollTrigger.getAll()) {
+      trigger.kill();
     }
   };
 }
