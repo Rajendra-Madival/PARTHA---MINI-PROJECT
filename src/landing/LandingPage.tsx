@@ -24,7 +24,7 @@ import { StepCard } from './components/StepCard';
 gsap.registerPlugin(ScrollTrigger);
 
 export interface LandingPageProps {
-  onOpenAuth?: (mode: 'login' | 'register') => void;
+  onOpenAuth?: (mode: 'login' | 'register', role?: 'student' | 'alumni' | 'admin') => void;
   onSelectGateMode?: (mode: 'login' | 'register') => void;
   gateAuthSlot?: ReactNode;
 }
@@ -426,7 +426,7 @@ export function LandingPage({
                       expanded={isExpanded}
                       onToggle={handleToggleCard}
                       onOpenAuth={onOpenAuth}
-                      onJoinAlumni={() => onOpenAuth?.('register')}
+                      onJoinAlumni={() => onOpenAuth?.('register', 'alumni')}
                     />
                   </div>
                 </div>
@@ -506,17 +506,20 @@ export function LandingPage({
               }}
               className="absolute inset-x-0 bottom-0 h-screen z-40 overflow-y-auto bg-[#FAF7F0]"
             >
-              <img
-                src="/assets/aistudio/24506908-d5d7-4763-8b9b-3051f12b91ef_71482280.png"
-                alt="PARTHA guiding your journey chariot illustration"
-                loading="lazy"
-                decoding="async"
-                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-left xl:object-center"
-              />
               <div
+                data-gate-login-backdrop="true"
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[#FAF7F0]/70 backdrop-blur-[2px] md:bg-gradient-to-r md:from-transparent md:via-[#FAF7F0]/15 md:to-[#FAF7F0]/68 md:backdrop-blur-none"
-              />
+                className="pointer-events-none absolute inset-x-0 top-16 bottom-0 overflow-hidden bg-[linear-gradient(90deg,#CFD8C7_0%,#E9ECE0_45%,#FAF7F0_100%)]"
+              >
+                <img
+                  src="/assets/aistudio/24506908-d5d7-4763-8b9b-3051f12b91ef_71482280.png"
+                  alt="PARTHA guiding your journey chariot illustration"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full select-none object-cover object-left-top lg:object-contain lg:object-left-top lg:[mask-image:linear-gradient(to_right,black_82%,transparent_100%)]"
+                />
+                <div className="absolute inset-0 bg-[#FAF7F0]/70 backdrop-blur-[2px] md:bg-gradient-to-r md:from-transparent md:via-[#FAF7F0]/15 md:to-[#FAF7F0]/68 md:backdrop-blur-none" />
+              </div>
               <div
                 data-gate-login-align="true"
                 className="relative z-10 mx-auto flex min-h-full w-full max-w-[1380px] justify-center md:justify-end px-4 pt-20 pb-8 sm:px-8 md:px-10 lg:px-14 xl:px-20"

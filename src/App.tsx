@@ -90,7 +90,10 @@ export default function App() {
   const [checkingConnection, setCheckingConnection] = useState(true);
 
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [authGateMode, setAuthGateMode] = useState<'login' | 'register' | null>(null);
+  const [authGateTarget, setAuthGateTarget] = useState<{
+    mode: 'login' | 'register';
+    role: UserRole;
+  } | null>(null);
   const [gateAuthRequest, setGateAuthRequest] = useState<{
     mode: 'login' | 'register';
     nonce: number;
@@ -727,13 +730,13 @@ export default function App() {
 
   if (!user) {
     void ParthaLandingPage;
-    if (authGateMode !== null) {
+    if (authGateTarget !== null) {
       return (
         <div className="min-h-screen bg-[#FAF7F0] text-[#18221D]">
           <div className="mx-auto max-w-5xl px-4 pt-4">
             <button
               type="button"
-              onClick={() => setAuthGateMode(null)}
+              onClick={() => setAuthGateTarget(null)}
               className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium text-[#14382A] hover:bg-[#ECFDF5] cursor-pointer"
             >
               &larr; Back to Partha
@@ -745,10 +748,11 @@ export default function App() {
             checkingConnection={checkingConnection}
             onRetryHealth={checkHealthAndBootstrap}
             onAuthenticated={(session, notice) => {
-              setAuthGateMode(null);
+              setAuthGateTarget(null);
               handleAuthenticated(session, notice);
             }}
-            initialMode={authGateMode}
+            initialMode={authGateTarget.mode}
+            initialRole={authGateTarget.role}
           />
         </div>
       );
@@ -757,7 +761,7 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#FAF7F0]" />}>
         <LandingPage
-          onOpenAuth={(mode) => setAuthGateMode(mode)}
+          onOpenAuth={(mode, role = 'student') => setAuthGateTarget({ mode, role })}
           onSelectGateMode={(mode) =>
             setGateAuthRequest((prev) => ({ mode, nonce: prev.nonce + 1 }))
           }

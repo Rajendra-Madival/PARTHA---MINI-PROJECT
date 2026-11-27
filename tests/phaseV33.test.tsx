@@ -198,5 +198,41 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
 
     fireEvent.click(loginBtn);
     expect(onSelectGateMode).toHaveBeenCalledWith('login');
+
+    const backdrop = container.querySelector('[data-gate-login-backdrop="true"]');
+    expect(backdrop?.className).toContain('top-16');
+  });
+
+  it('clicking "Join as alumni" opens Alumni registration directly', async () => {
+    setupDomStubs({ reducedMotion: false, width: 1440 });
+    const onOpenAuth = vi.fn();
+    const { LandingPage } = await import('../src/landing/LandingPage');
+    const { AuthScreen } = await import('../src/components/AuthScreen');
+    const { container } = render(<LandingPage onOpenAuth={onOpenAuth} />);
+
+    const dawnToggle = container.querySelector('[data-step-card="dawn-lake"] button') as HTMLButtonElement;
+    expect(dawnToggle).not.toBeNull();
+    fireEvent.click(dawnToggle);
+
+    const joinAlumniBtn = Array.from(container.querySelectorAll('#scene-dawn-lake button')).find(
+      (btn) => btn.textContent?.trim() === 'Join as alumni',
+    ) as HTMLButtonElement;
+    expect(joinAlumniBtn).toBeDefined();
+    fireEvent.click(joinAlumniBtn);
+    expect(onOpenAuth).toHaveBeenCalledWith('register', 'alumni');
+
+    const authRender = render(
+      <AuthScreen
+        embedded
+        dbHealth={null}
+        bootstrapStatus={null}
+        checkingConnection={false}
+        onRetryHealth={async () => {}}
+        onAuthenticated={() => {}}
+        initialMode="register"
+        initialRole="alumni"
+      />,
+    );
+    expect(authRender.container.textContent).toContain('Alumni Registration');
   });
 });

@@ -29,6 +29,7 @@ interface AuthScreenProps {
   onAuthenticated: (session: AuthSession, notice?: string) => void;
   embedded?: boolean;
   initialMode?: 'login' | 'register';
+  initialRole?: UserRole;
   modeNonce?: number;
 }
 
@@ -60,15 +61,17 @@ export function AuthScreen({
   onAuthenticated,
   embedded = false,
   initialMode = 'login',
+  initialRole = 'student',
   modeNonce = 0,
 }: AuthScreenProps) {
   const prefersReducedMotion = useReducedMotion();
-  const [role, setRole] = useState<UserRole>('student');
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
 
   useEffect(() => {
     setMode(initialMode);
-  }, [initialMode, modeNonce]);
+    setRole(initialRole);
+  }, [initialMode, initialRole, modeNonce]);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
