@@ -15,17 +15,23 @@ export interface ScenePropConfig {
   src: string;
   width: number;
   height: number;
-  /** Left position in % of scene width (centered horizontally via translateX(-50%)) */
+  /** Left position in % of art-box width (centered horizontally via translateX(-50%)) */
   xPercent: number;
-  /** Bottom anchor in % from bottom of scene (so y = 100 - bottomPercent), or height-based */
+  /** Bottom anchor in % from top of art-box (bottom edge of prop sits at yPercent%) */
   yPercent: number;
-  /** Width as % of scene width, or omit when heightPercent is set */
+  /** Width as % of art-box width */
   widthPercent?: number;
-  minWidthPx?: number;
-  /** Height as % of scene height, or omit when widthPercent is set */
+  /** Height as % of art-box height */
   heightPercent?: number;
+  /** Render base water ripple ellipse + contact shadow under stem */
+  waterBase?: boolean;
   eager?: boolean;
   preloadExtraSrc?: string;
+}
+
+export interface BoxCoordinate {
+  xPercent: number;
+  yPercent: number;
 }
 
 export interface SceneArtworkConfig {
@@ -35,13 +41,18 @@ export interface SceneArtworkConfig {
     land?: ResponsiveLayerImage;
     fore?: ResponsiveLayerImage;
   };
+  /** Max total scroll parallax fraction of art-box height (strictly <= 0.04) */
   parallax: {
     sky: number;
     land: number;
     fore: number;
   };
-  /** % of scene height shifted DOWN (+ expands down, - lifts sky up) */
+  /** Horizontal focal center % used on <768px height-fit mobile framing */
+  focusXPercent: number;
+  /** % of art-box height shifted down (+ moves down, - lifts up) */
   landShiftY: number;
+  /** Land layer height as % of art-box height (default 100) */
+  landHeightPercent?: number;
   skyShiftY?: number;
   /** Scroll-driven sun sinking for Scene 2 */
   sunSink?: boolean;
@@ -49,6 +60,10 @@ export interface SceneArtworkConfig {
   horizonGlow?: boolean;
   eager?: boolean;
   props: ScenePropConfig[];
+  /** Waypoint ring anchor in % of art-box on desktop */
+  waypoint?: BoxCoordinate;
+  /** Pill / card top-left anchor in % of art-box on desktop */
+  card?: BoxCoordinate;
   gate?: {
     closed: ResponsiveLayerImage;
     open: ResponsiveLayerImage;
@@ -76,9 +91,11 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
       land: sceneLayer('s0-land'),
       fore: sceneLayer('s0-fore'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
+    parallax: { sky: 0.015, land: 0.035, fore: 0.04 },
+    focusXPercent: 30,
     skyShiftY: -16,
     landShiftY: 21,
+    landHeightPercent: 116,
     eager: true,
     props: [
       {
@@ -101,8 +118,12 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
       land: sceneLayer('s1-land'),
       fore: sceneLayer('s1-fore'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
-    landShiftY: -2,
+    parallax: { sky: 0.015, land: 0.035, fore: 0.04 },
+    focusXPercent: 36,
+    landShiftY: -3,
+    landHeightPercent: 106,
+    waypoint: { xPercent: 32, yPercent: 45 },
+    card: { xPercent: 42, yPercent: 22 },
     props: [
       {
         id: 'sage',
@@ -111,9 +132,8 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         width: 805,
         height: 900,
         xPercent: 32,
-        yPercent: 82,
-        widthPercent: 18,
-        minWidthPx: 120,
+        yPercent: 84,
+        widthPercent: 16,
       },
       {
         id: 'diya',
@@ -121,10 +141,9 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         src: '/landing/art/diya.webp',
         width: 640,
         height: 401,
-        xPercent: 50,
-        yPercent: 84,
-        widthPercent: 5,
-        minWidthPx: 40,
+        xPercent: 40,
+        yPercent: 85,
+        widthPercent: 4.5,
       },
     ],
   },
@@ -135,9 +154,13 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
       land: sceneLayer('s2-land'),
       fore: sceneLayer('s2-fore'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
-    landShiftY: 23,
+    parallax: { sky: 0.015, land: 0.035, fore: 0.04 },
+    focusXPercent: 50,
+    landShiftY: 24,
+    landHeightPercent: 105,
     sunSink: true,
+    waypoint: { xPercent: 50, yPercent: 60 },
+    card: { xPercent: 14, yPercent: 26 },
     props: [],
   },
   kurukshetra: {
@@ -147,9 +170,13 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
       land: sceneLayer('s3-land'),
       fore: sceneLayer('s3-fore'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
-    landShiftY: 14,
+    parallax: { sky: 0.015, land: 0.035, fore: 0.04 },
+    focusXPercent: 52,
+    landShiftY: 16,
+    landHeightPercent: 106,
     horizonGlow: true,
+    waypoint: { xPercent: 54, yPercent: 67 },
+    card: { xPercent: 62, yPercent: 20 },
     props: [
       {
         id: 'conch',
@@ -160,7 +187,6 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         xPercent: 20,
         yPercent: 84,
         widthPercent: 6,
-        minWidthPx: 40,
       },
       {
         id: 'chariot',
@@ -171,7 +197,6 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         xPercent: 54,
         yPercent: 80,
         widthPercent: 38,
-        minWidthPx: 190,
       },
       {
         id: 'wheel',
@@ -182,7 +207,6 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         xPercent: 86,
         yPercent: 82,
         widthPercent: 12,
-        minWidthPx: 56,
       },
     ],
   },
@@ -193,8 +217,12 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
       land: sceneLayer('s4-land'),
       fore: sceneLayer('s4-fore'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
-    landShiftY: -5,
+    parallax: { sky: 0.015, land: 0.035, fore: 0.04 },
+    focusXPercent: 48,
+    landShiftY: -39.5,
+    landHeightPercent: 142,
+    waypoint: { xPercent: 48, yPercent: 52 },
+    card: { xPercent: 14, yPercent: 18 },
     props: [
       {
         id: 'lotus-bud',
@@ -202,9 +230,10 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
         src: '/landing/art/lotus-bud.webp',
         width: 641,
         height: 1000,
-        xPercent: 50,
-        yPercent: 95,
-        heightPercent: 38,
+        xPercent: 48,
+        yPercent: 77,
+        heightPercent: 35,
+        waterBase: true,
         preloadExtraSrc: '/landing/art/lotus-open.webp',
       },
     ],
@@ -214,7 +243,8 @@ export const SCENE_ARTWORKS: Record<SceneId, SceneArtworkConfig> = {
     layers: {
       sky: sceneLayer('s5-sky'),
     },
-    parallax: { sky: 0.15, land: 0.35, fore: 0.7 },
+    parallax: { sky: 0.01, land: 0, fore: 0 },
+    focusXPercent: 50,
     landShiftY: 0,
     props: [],
     gate: {

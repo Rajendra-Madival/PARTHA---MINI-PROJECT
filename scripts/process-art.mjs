@@ -22,8 +22,28 @@ const SKY_FILES = [
 const MAGENTA_FILES = [
   { name: 's0-land', width: 1920, quality: 76 },
   { name: 's0-fore', width: 1920, quality: 80 },
-  { name: 's1-land', width: 1920, quality: 80 },
-  { name: 's1-fore', width: 1920, quality: 80 },
+  {
+    name: 's1-land',
+    width: 1920,
+    quality: 80,
+    borderDistTol: 115,
+    pocketHueMin: 270,
+    pocketHueMax: 340,
+    pocketSatMin: 0.35,
+    pocketValMin: 0.15,
+    erodePx: 1,
+  },
+  {
+    name: 's1-fore',
+    width: 1920,
+    quality: 80,
+    borderDistTol: 115,
+    pocketHueMin: 270,
+    pocketHueMax: 340,
+    pocketSatMin: 0.35,
+    pocketValMin: 0.15,
+    erodePx: 1,
+  },
   { name: 's2-land', width: 1920, quality: 80 },
   { name: 's2-fore', width: 1920, quality: 80 },
   { name: 's3-land', width: 1920, quality: 80 },
@@ -71,16 +91,37 @@ function colorDist(r1, g1, b1, r2, g2, b2) {
   return Math.sqrt(dr * dr + dg * dg + db * db);
 }
 
-function isBorderMagenta(r, g, b) {
-  const dist = colorDist(r, g, b, 255, 0, 255);
-  if (dist <= 65) return true;
-  const [h, s, v] = rgbToHsv(r, g, b);
-  return h >= 282 && h <= 328 && s >= 0.52 && v >= 0.4 && r > g + 35 && b > g + 35;
+function erodeAlpha(data, w, h, radius = 1) {
+  for (let pass = 0; pass < radius; pass++) {
+    const snap = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) snap[i] = data[i * 4 + 3];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (snap[idx] === 0) continue;
+        const nZero =
+          (x > 0 && snap[idx - 1] === 0) ||
+          (x < w - 1 && snap[idx + 1] === 0) ||
+          (y > 0 && snap[idx - w] === 0) ||
+          (y < h - 1 && snap[idx + w] === 0);
+        if (nZero) {
+          data[idx * 4 + 3] = 0;
+        }
+      }
+    }
+  }
 }
 
-function isPocketMagenta(r, g, b) {
+function isBorderMagenta(r, g, b, borderDistTol = 65, hueMin = 282, hueMax = 328, satMin = 0.52) {
+  const dist = colorDist(r, g, b, 255, 0, 255);
+  if (dist <= borderDistTol) return true;
   const [h, s, v] = rgbToHsv(r, g, b);
-  return h >= 285 && h <= 330 && s > 0.6 && v > 0.6;
+  return h >= hueMin && h <= hueMax && s >= satMin && v >= 0.25 && r > g + 16 && b > g + 14;
+}
+
+function isPocketMagenta(r, g, b, hueMin = 285, hueMax = 330, satMin = 0.6, valMin = 0.6) {
+  const [h, s, v] = rgbToHsv(r, g, b);
+  return h >= hueMin && h <= hueMax && s > satMin && v > valMin;
 }
 
 function featherAndDespillMagenta(data, w, h) {
@@ -169,7 +210,16 @@ function featherAndDespillMagenta(data, w, h) {
   }
 }
 
-async function processMagentaImage(inputPath) {
+async function processMagentaImage(inputPath, opts = {}) {
+  const {
+    borderDistTol = 65,
+    pocketHueMin = 285,
+    pocketHueMax = 330,
+    pocketSatMin = 0.6,
+    pocketValMin = 0.6,
+    erodePx = 0,
+  } = opts;
+
   const { data, info } = await sharp(inputPath)
     .ensureAlpha()
     .raw()
@@ -186,7 +236,17 @@ async function processMagentaImage(inputPath) {
     const idx = y * w + x;
     if (visited[idx]) return;
     const p = idx * 4;
-    if (isBorderMagenta(data[p], data[p + 1], data[p + 2])) {
+    if (
+      isBorderMagenta(
+        data[p],
+        data[p + 1],
+        data[p + 2],
+        borderDistTol,
+        pocketHueMin,
+        pocketHueMax,
+        pocketSatMin,
+      )
+    ) {
       visited[idx] = 1;
       queue[tail++] = idx;
     }
@@ -212,15 +272,29 @@ async function processMagentaImage(inputPath) {
     if (y < h - 1) pushIfMagenta(x, y + 1);
   }
 
-  // Enclosed magenta pockets pass (strict HSV so pink lotus petals stay intact)
+  // Enclosed magenta pockets pass (customizable per layer so lotus petals stay intact while ashram removes 270..340 S>0.35)
   let pocketCleared = 0;
   for (let i = 0; i < w * h; i++) {
     const p = i * 4;
     if (data[p + 3] === 0) continue;
-    if (isPocketMagenta(data[p], data[p + 1], data[p + 2])) {
+    if (
+      isPocketMagenta(
+        data[p],
+        data[p + 1],
+        data[p + 2],
+        pocketHueMin,
+        pocketHueMax,
+        pocketSatMin,
+        pocketValMin,
+      )
+    ) {
       data[p + 3] = 0;
       pocketCleared++;
     }
+  }
+
+  if (erodePx > 0) {
+    erodeAlpha(data, w, h, erodePx);
   }
 
   featherAndDespillMagenta(data, w, h);
@@ -292,17 +366,19 @@ function removeWhiteSpokePockets(data, w, h, bg, minArea = 600, tol = 18) {
   return removedRegions;
 }
 
-function featherWhiteEdges(data, w, h, bg) {
+function featherWhiteEdges(data, w, h, bg, borderDistCutoff = 68, strongRecolor = false) {
   const origAlpha = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) origAlpha[i] = data[i * 4 + 3];
 
+  const radius = strongRecolor ? 2 : 1;
+  const searchR = strongRecolor ? 3 : 2;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       if (origAlpha[idx] === 0) continue;
       let touchesBg = false;
-      for (let dy = -1; dy <= 1 && !touchesBg; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -radius; dy <= radius && !touchesBg; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= w || ny < 0 || ny >= h || origAlpha[ny * w + nx] === 0) {
@@ -313,25 +389,32 @@ function featherWhiteEdges(data, w, h, bg) {
       }
       if (!touchesBg) continue;
       const p = idx * 4;
-      const d = colorDist(data[p], data[p + 1], data[p + 2], bg[0], bg[1], bg[2]);
-      if (d < 68) {
-        // Pull subtle bright anti-aliased edge pixel toward darker interior neighbor & lower alpha slightly
+      const r = data[p];
+      const g = data[p + 1];
+      const b = data[p + 2];
+      const d = colorDist(r, g, b, bg[0], bg[1], bg[2]);
+      const isNearWhite = strongRecolor && Math.min(r, g, b) > 165;
+      if (d < borderDistCutoff || isNearWhite) {
         let sumR = 0;
         let sumG = 0;
         let sumB = 0;
         let cnt = 0;
-        for (let dy = -2; dy <= 2; dy++) {
-          for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -searchR; dy <= searchR; dy++) {
+          for (let dx = -searchR; dx <= searchR; dx++) {
             const nx = x + dx;
             const ny = y + dy;
             if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
             const nIdx = ny * w + nx;
             if (origAlpha[nIdx] > 0) {
               const np = nIdx * 4;
-              if (colorDist(data[np], data[np + 1], data[np + 2], bg[0], bg[1], bg[2]) >= 72) {
-                sumR += data[np];
-                sumG += data[np + 1];
-                sumB += data[np + 2];
+              const nr = data[np];
+              const ng = data[np + 1];
+              const nb = data[np + 2];
+              const nd = colorDist(nr, ng, nb, bg[0], bg[1], bg[2]);
+              if (nd >= (strongRecolor ? 95 : 72) && !(strongRecolor && Math.min(nr, ng, nb) > 180)) {
+                sumR += nr;
+                sumG += ng;
+                sumB += nb;
                 cnt++;
               }
             }
@@ -342,13 +425,20 @@ function featherWhiteEdges(data, w, h, bg) {
           data[p + 1] = Math.round(sumG / cnt);
           data[p + 2] = Math.round(sumB / cnt);
         }
-        data[p + 3] = Math.min(data[p + 3], d < 36 ? 150 : 195);
+        if (!strongRecolor) {
+          data[p + 3] = Math.min(data[p + 3], d < 36 ? 150 : 195);
+        } else if (d < 50) {
+          data[p + 3] = Math.min(data[p + 3], 185);
+        }
       }
     }
   }
 }
 
-async function processWhiteBgImage(inputPath, { removeInnerPockets = false, tol = 12 } = {}) {
+async function processWhiteBgImage(
+  inputPath,
+  { removeInnerPockets = false, tol = 12, erodePx = 0, strongRecolor = false } = {},
+) {
   const { data, info } = await sharp(inputPath)
     .ensureAlpha()
     .raw()
@@ -406,7 +496,11 @@ async function processWhiteBgImage(inputPath, { removeInnerPockets = false, tol 
     removedPockets = removeWhiteSpokePockets(data, w, h, bg, 600, 18);
   }
 
-  featherWhiteEdges(data, w, h, bg);
+  if (erodePx > 0) {
+    erodeAlpha(data, w, h, erodePx);
+  }
+
+  featherWhiteEdges(data, w, h, bg, strongRecolor ? 115 : 68, strongRecolor);
   return { data, w, h, bg, removedPockets };
 }
 
@@ -526,7 +620,7 @@ async function buildContactSheet(cutoutNames) {
   })
     .composite(composites)
     .png()
-    .toFile(path.join(SCREENSHOTS_DIR, 'V32-cutouts.png'));
+    .toFile(path.join(SCREENSHOTS_DIR, 'V32b-cutouts.png'));
 }
 
 async function main() {
@@ -557,7 +651,7 @@ async function main() {
       console.warn(`MISSING magenta layer: ${item.name}.png`);
       continue;
     }
-    const { data, w, h, pocketCleared } = await processMagentaImage(src);
+    const { data, w, h, pocketCleared } = await processMagentaImage(src, item);
     const rawSharp = sharp(Buffer.from(data), { raw: { width: w, height: h, channels: 4 } });
 
     await rawSharp
@@ -608,12 +702,12 @@ async function main() {
     console.log(`Processed rama-ready & rama-draw with shared crop ${box.width}x${box.height}`);
   }
 
-  // 4. Lotus pair on exact same crop box & padding, 1000px tall
+  // 4. Lotus pair on exact same crop box & padding, 1000px tall (2px erode + white-border recolor)
   const budPath = resolveInput('lotus-bud');
   const openPath = resolveInput('lotus-open');
   if (budPath && openPath) {
-    const bud = await processWhiteBgImage(budPath, { tol: 12 });
-    const open = await processWhiteBgImage(openPath, { tol: 12 });
+    const bud = await processWhiteBgImage(budPath, { tol: 22, erodePx: 2, strongRecolor: true });
+    const open = await processWhiteBgImage(openPath, { tol: 22, erodePx: 2, strongRecolor: true });
     const b1 = getOpaqueBounds(bud.data, bud.w, bud.h);
     const b2 = getOpaqueBounds(open.data, open.w, open.h);
     const union = {

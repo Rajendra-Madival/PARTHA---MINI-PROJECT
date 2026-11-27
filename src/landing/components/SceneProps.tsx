@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { SceneArtworkConfig } from '../content/scenes';
 
 export function SceneProps({
@@ -46,72 +46,211 @@ export function SceneProps({
     }
   }, [config.props, shouldLoad]);
 
+  if (config.gate) {
+    return <GateArtworkStage config={config} eager={eager} />;
+  }
+
   return (
     <div
       ref={wrapRef}
       aria-hidden="true"
       data-scene-props={config.id}
-      className="pointer-events-none absolute inset-0 z-[4] overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-[4]"
     >
       {shouldLoad &&
         config.props.map((prop) => (
-          <img
-            key={prop.id}
-            data-prop={prop.id}
-            src={prop.src}
-            width={prop.width}
-            height={prop.height}
-            alt=""
-            loading={prop.eager || eager ? 'eager' : 'lazy'}
-            decoding={prop.eager || eager ? 'sync' : 'async'}
-            fetchPriority={prop.eager || eager ? 'high' : undefined}
-            className="pointer-events-none absolute select-none"
-            style={{
-              left: `${prop.xPercent}%`,
-              top: `${prop.yPercent}%`,
-              transform: 'translate(-50%, -100%)',
-              width: prop.widthPercent !== undefined ? `${prop.widthPercent}%` : 'auto',
-              minWidth: prop.minWidthPx !== undefined ? `${prop.minWidthPx}px` : undefined,
-              height: prop.heightPercent !== undefined ? `${prop.heightPercent}%` : 'auto',
-              aspectRatio: `${prop.width} / ${prop.height}`,
-            }}
-          />
+          <Fragment key={prop.id}>
+            {prop.waterBase && (
+              <>
+                {/* Soft elliptical water shadow under lotus stem base */}
+                <div
+                  aria-hidden="true"
+                  data-water-shadow={prop.id}
+                  className="pointer-events-none absolute rounded-full blur-[2px]"
+                  style={{
+                    left: `${prop.xPercent}%`,
+                    top: `${prop.yPercent}%`,
+                    width: '8%',
+                    height: '1.8%',
+                    transform: 'translate(-50%, -50%)',
+                    background:
+                      'radial-gradient(ellipse at center, rgba(20,56,42,0.34) 0%, rgba(20,56,42,0) 75%)',
+                  }}
+                />
+                {/* Soft inner water ripple ellipse where stem meets lake */}
+                <div
+                  aria-hidden="true"
+                  data-water-ripple={prop.id}
+                  className="pointer-events-none absolute rounded-full border border-[rgba(255,246,227,0.48)]"
+                  style={{
+                    left: `${prop.xPercent}%`,
+                    top: `${prop.yPercent}%`,
+                    width: '10%',
+                    height: '2.2%',
+                    transform: 'translate(-50%, -50%)',
+                    boxShadow: '0 0 8px rgba(255,246,227,0.28)',
+                  }}
+                />
+                {/* Outer faint water ripple ring */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute rounded-full border border-[rgba(255,246,227,0.26)]"
+                  style={{
+                    left: `${prop.xPercent}%`,
+                    top: `${prop.yPercent}%`,
+                    width: '15%',
+                    height: '3.2%',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                />
+              </>
+            )}
+            <img
+              data-prop={prop.id}
+              src={prop.src}
+              width={prop.width}
+              height={prop.height}
+              alt=""
+              loading="eager"
+              decoding={prop.eager || eager ? 'sync' : 'async'}
+              fetchPriority={prop.eager || eager ? 'high' : undefined}
+              className="pointer-events-none absolute select-none"
+              style={{
+                left: `${prop.xPercent}%`,
+                top: `${prop.yPercent}%`,
+                transform: 'translate(-50%, -100%)',
+                width: prop.widthPercent !== undefined ? `${prop.widthPercent}%` : 'auto',
+                height: prop.heightPercent !== undefined ? `${prop.heightPercent}%` : 'auto',
+                aspectRatio: `${prop.width} / ${prop.height}`,
+              }}
+            />
+          </Fragment>
         ))}
+    </div>
+  );
+}
 
-      {/* Scene 5 gate wrapper (transform-origin at doorway center 50% 65% for V3-5 zoom) */}
-      {shouldLoad && config.gate && (
-        <div
-          data-gate-wrapper="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0"
-          style={{
-            transformOrigin: '50% 65%',
-            aspectRatio: `${config.gate.closed.width} / ${config.gate.closed.height}`,
-          }}
-        >
-          <img
-            data-gate-layer="closed"
-            src={config.gate.closed.src}
-            srcSet={config.gate.closed.srcSet}
-            sizes={config.gate.closed.sizes}
-            width={config.gate.closed.width}
-            height={config.gate.closed.height}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover object-bottom"
-          />
-          <img
-            data-gate-layer="open"
-            src={config.gate.open.src}
-            srcSet={config.gate.open.srcSet}
-            sizes={config.gate.open.sizes}
-            width={config.gate.open.width}
-            height={config.gate.open.height}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-bottom opacity-0"
-          />
+/** Dedicated Scene 5 Gate renderer fitting height cleanly with stretched left/right wall extensions */
+export function GateArtworkStage({
+  config,
+  eager = false,
+}: {
+  config: SceneArtworkConfig;
+  eager?: boolean;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(Boolean(eager));
+
+  useEffect(() => {
+    if (eager) {
+      setShouldLoad(true);
+      return;
+    }
+    const el = stageRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setShouldLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100% 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [eager]);
+
+  if (!config.gate) return null;
+
+  return (
+    <div
+      ref={stageRef}
+      aria-hidden="true"
+      data-scene-props={config.id}
+      className="pointer-events-none relative w-full h-full flex items-end justify-center overflow-hidden"
+    >
+      {shouldLoad && (
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center overflow-hidden">
+          {/* Left stretched wall extension (slices outer ~12px clean flat wall course) */}
+          <div className="pointer-events-none absolute left-0 right-1/2 bottom-0 h-full overflow-hidden">
+            <img
+              src={config.gate.closed.src}
+              width={config.gate.closed.width}
+              height={config.gate.closed.height}
+              alt=""
+              loading="eager"
+              decoding="async"
+              style={{
+                position: 'absolute',
+                left: 0,
+                bottom: 0,
+                height: '100%',
+                width: '15000%',
+                maxWidth: 'none',
+                objectFit: 'fill',
+              }}
+            />
+          </div>
+
+          {/* Right stretched wall extension (slices outer ~12px clean flat wall course) */}
+          <div className="pointer-events-none absolute left-1/2 right-0 bottom-0 h-full overflow-hidden">
+            <img
+              src={config.gate.closed.src}
+              width={config.gate.closed.width}
+              height={config.gate.closed.height}
+              alt=""
+              loading="eager"
+              decoding="async"
+              style={{
+                position: 'absolute',
+                right: 0,
+                bottom: 0,
+                height: '100%',
+                width: '15000%',
+                maxWidth: 'none',
+                objectFit: 'fill',
+              }}
+            />
+          </div>
+
+          {/* Centered Gate artwork: strictly height-constrained inside container on desktop, center 146vw span on mobile */}
+          <div
+            data-gate-wrapper="true"
+            className="pointer-events-none relative shrink-0 h-full max-md:w-[146vw] max-md:h-auto max-md:max-h-full"
+            style={{
+              transformOrigin: '50% 65%',
+              aspectRatio: `${config.gate.closed.width} / ${config.gate.closed.height}`,
+            }}
+          >
+            <img
+              data-gate-layer="closed"
+              src={config.gate.closed.src}
+              srcSet={config.gate.closed.srcSet}
+              sizes={config.gate.closed.sizes}
+              width={config.gate.closed.width}
+              height={config.gate.closed.height}
+              alt=""
+              loading="eager"
+              decoding="async"
+              className="w-full h-full object-contain object-bottom"
+            />
+            <img
+              data-gate-layer="open"
+              src={config.gate.open.src}
+              srcSet={config.gate.open.srcSet}
+              sizes={config.gate.open.sizes}
+              width={config.gate.open.width}
+              height={config.gate.open.height}
+              alt=""
+              loading="eager"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-contain object-bottom opacity-0"
+            />
+          </div>
         </div>
       )}
     </div>

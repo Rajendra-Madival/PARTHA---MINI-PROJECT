@@ -97,4 +97,27 @@ describe('Phase V3-2: SceneBackdrop & SceneProps', () => {
     expect(openGate).not.toBeNull();
     expect(openGate?.className).toContain('opacity-0');
   });
+
+  it('keeps scene props inside the shared land-group wrapper with locked box coordinates', async () => {
+    const { SceneBackdrop } = await import('../src/landing/components/SceneBackdrop');
+    const { SceneProps } = await import('../src/landing/components/SceneProps');
+    const { container } = render(
+      <SceneBackdrop
+        gradientClass="v3-backdrop-mint-gold"
+        sceneId="dawn-lake"
+        layers={SCENE_ARTWORKS['dawn-lake'].layers}
+        landShiftY={SCENE_ARTWORKS['dawn-lake'].landShiftY}
+        landHeightPercent={SCENE_ARTWORKS['dawn-lake'].landHeightPercent}
+        blended
+        eager
+      >
+        <SceneProps config={SCENE_ARTWORKS['dawn-lake']} eager />
+      </SceneBackdrop>,
+    );
+    const canvas = container.querySelector('[data-scene-canvas="true"]');
+    expect(canvas?.className).toContain('v3-scene-blend-mask');
+    const landGroup = container.querySelector('[data-backdrop-layer="land-group"]');
+    expect(landGroup?.querySelector('[data-prop="lotus-bud"]')).not.toBeNull();
+    expect(landGroup?.querySelector('[data-water-ripple="lotus-bud"]')).not.toBeNull();
+  });
 });
