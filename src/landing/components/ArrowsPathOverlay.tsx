@@ -113,22 +113,22 @@ function computeScrollMappedProgress(
 ): number {
   const s0 = Math.max(120, stopScrollYs[0] ?? 700);
   const t0 = thresholds[0] ?? 0.28;
+  const handoffY = Math.max(60, Math.round(s0 * 0.2));
+  const pHandoff = launchProgress + (t0 - launchProgress) * 0.2;
 
   if (scrollY <= 1) {
     return scrollEngaged ? 0 : shotProgress;
   }
 
   if (scrollY < s0) {
-    if (!scrollEngaged && shotProgress > 0) {
-      const u = scrollY / s0;
-      return shotProgress + (t0 - shotProgress) * u;
+    if (!scrollEngaged && shotProgress > 0 && scrollY <= handoffY) {
+      return shotProgress + (pHandoff - shotProgress) * (scrollY / handoffY);
     }
-    const launchScrollY = s0 * 0.3;
-    if (scrollY <= launchScrollY) {
-      return (scrollY / launchScrollY) * launchProgress;
+    if (scrollY <= handoffY) {
+      return (scrollY / handoffY) * pHandoff;
     }
-    const u = (scrollY - launchScrollY) / (s0 - launchScrollY);
-    return launchProgress + (t0 - launchProgress) * u;
+    const u = (scrollY - handoffY) / (s0 - handoffY);
+    return pHandoff + (t0 - pHandoff) * u;
   }
 
   for (let i = 0; i < 4; i += 1) {
@@ -278,7 +278,7 @@ export function ArrowsPathOverlay({
     const scrollingUp = scrollY < prevScrollYRef.current - 2;
     prevScrollYRef.current = scrollY;
 
-    if (scrollY >= s0 * 0.32 || (scrollingUp && scrollY > 0)) {
+    if (scrollY >= s0 * 0.2 || (scrollingUp && scrollY > 0)) {
       scrollEngagedRef.current = true;
       shotTweenRef.current?.kill();
     }
