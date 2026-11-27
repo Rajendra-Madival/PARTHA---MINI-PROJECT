@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { AnimatePresence, motion } from 'motion/react';
 import { COPY } from '../content/copy';
-import { LotusSvg } from '../components/MotifIcons';
+import { LotusBowMarkSvg } from '../components/MotifIcons';
 import { Button } from '../components/Button';
 import { scrollToTarget } from '../motion/lenis';
 import { useRouter } from '../lib/router';
 import { useReducedMotion } from '../motion/useReducedMotion';
 
+gsap.registerPlugin(ScrollTrigger);
+
+type SectionMode = 'dark' | 'light';
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [navMode, setNavMode] = useState<SectionMode>('dark');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -23,6 +30,32 @@ export function Navbar() {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Switch Navbar dark/light mode to match the section underneath (v2 Section 4.3 & 6.0)
+  useEffect(() => {
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.partha-landing-v1 main#main-content > section[data-section-mode], .partha-landing-v1 footer[data-section-mode]',
+      ),
+    );
+    if (sections.length === 0) return;
+
+    const ctx = gsap.context(() => {
+      for (const sectionEl of sections) {
+        const mode: SectionMode =
+          sectionEl.dataset.sectionMode === 'light' ? 'light' : 'dark';
+        ScrollTrigger.create({
+          trigger: sectionEl,
+          start: 'top 72px',
+          end: 'bottom 72px',
+          onEnter: () => setNavMode(mode),
+          onEnterBack: () => setNavMode(mode),
+        });
+      }
+    });
+
+    return () => ctx.revert();
   }, []);
 
   useEffect(() => {
@@ -75,15 +108,21 @@ export function Navbar() {
     scrollToTarget(href);
   };
 
+  const isLight = navMode === 'light';
+
+  const headerBgClass = isLight
+    ? 'bg-[rgba(250,247,240,0.92)] backdrop-blur-md border-[rgba(20,56,42,0.18)] nav-mode-light'
+    : scrolled
+      ? 'bg-[rgba(11,16,38,0.85)] backdrop-blur-md border-[rgba(212,175,55,0.22)] nav-mode-dark'
+      : 'bg-transparent border-transparent nav-mode-dark';
+
   return (
     <header
       id="navbar"
+      data-section-mode={navMode}
       className={[
-        'fixed top-0 inset-x-0 z-50 border-b',
-        reducedMotion ? 'transition-colors duration-150' : 'transition-all duration-300 ease-out',
-        scrolled
-          ? 'bg-[rgba(11,16,38,0.85)] backdrop-blur-md border-[rgba(212,175,55,0.22)]'
-          : 'bg-transparent border-transparent',
+        'fixed top-0 inset-x-0 z-50 border-b transition-colors duration-200',
+        headerBgClass,
       ].join(' ')}
     >
       <nav
@@ -96,10 +135,20 @@ export function Navbar() {
             e.preventDefault();
             scrollToTarget('#hero');
           }}
-          className="inline-flex items-center gap-2.5 min-h-[44px] pr-2 rounded-lg text-[var(--c-ivory)] no-underline group"
+          className={[
+            'inline-flex items-center gap-2.5 min-h-[44px] pr-2 rounded-lg no-underline group transition-colors duration-200',
+            isLight ? 'text-[var(--c-forest-900)]' : 'text-[var(--c-ivory)]',
+          ].join(' ')}
         >
-          <LotusSvg className="w-8 h-8 text-[var(--c-gold)] group-hover:text-[var(--c-saffron)] transition-colors duration-200" />
-          <span className="font-[var(--font-display)] text-xl tracking-[0.08em] font-semibold">
+          <LotusBowMarkSvg
+            className={[
+              'w-8 h-8 transition-colors duration-200',
+              isLight
+                ? 'text-[var(--c-forest-900)] group-hover:text-[var(--c-forest)]'
+                : 'text-[var(--c-gold)] group-hover:text-[var(--c-saffron)]',
+            ].join(' ')}
+          />
+          <span className="font-[var(--font-landing-display)] text-2xl tracking-[0.06em] font-semibold">
             {COPY.brand.name}
           </span>
         </a>
@@ -114,7 +163,12 @@ export function Navbar() {
                 e.preventDefault();
                 handleAnchor(link.href);
               }}
-              className="min-h-[44px] px-3.5 inline-flex items-center rounded-lg text-sm font-medium text-[var(--c-ivory-dim)] hover:text-[var(--c-ivory)] hover:bg-[rgba(212,175,55,0.08)] transition-colors duration-200 no-underline"
+              className={[
+                'min-h-[44px] px-3.5 inline-flex items-center rounded-lg text-sm font-medium transition-colors duration-200 no-underline',
+                isLight
+                  ? 'text-[var(--c-ink)] hover:text-[var(--c-forest-900)] hover:bg-[rgba(20,56,42,0.08)]'
+                  : 'text-[var(--c-ivory-dim)] hover:text-[var(--c-ivory)] hover:bg-[rgba(212,175,55,0.08)]',
+              ].join(' ')}
             >
               {link.label}
             </a>
@@ -139,7 +193,12 @@ export function Navbar() {
           aria-expanded={drawerOpen}
           aria-controls="mobile-nav-drawer"
           onClick={() => setDrawerOpen(true)}
-          className="md:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl border border-[rgba(212,175,55,0.4)] bg-[rgba(11,16,38,0.75)] text-[var(--c-ivory)] cursor-pointer"
+          className={[
+            'md:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl border transition-colors duration-200 cursor-pointer',
+            isLight
+              ? 'border-[rgba(20,56,42,0.3)] bg-[var(--c-brand-white)] text-[var(--c-forest-900)]'
+              : 'border-[rgba(212,175,55,0.4)] bg-[rgba(11,16,38,0.75)] text-[var(--c-ivory)]',
+          ].join(' ')}
         >
           <svg
             viewBox="0 0 24 24"
@@ -163,17 +222,18 @@ export function Navbar() {
             role="dialog"
             aria-modal="true"
             aria-label={COPY.nav.drawerLabel}
+            data-section-mode="dark"
             initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
             animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
             transition={{ duration: reducedMotion ? 0.16 : 0.22, ease: 'easeOut' }}
-            className="fixed inset-0 z-50 md:hidden bg-[var(--c-night-0)] px-6 py-6 flex flex-col justify-between"
+            className="fixed inset-0 z-50 md:hidden bg-[var(--c-night-0)] text-[var(--c-ivory)] px-6 py-6 flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-2.5">
-                  <LotusSvg className="w-8 h-8 text-[var(--c-gold)]" />
-                  <span className="font-[var(--font-display)] text-xl tracking-[0.08em] font-semibold">
+                  <LotusBowMarkSvg className="w-8 h-8 text-[var(--c-gold)]" />
+                  <span className="font-[var(--font-landing-display)] text-2xl tracking-[0.06em] font-semibold">
                     {COPY.brand.name}
                   </span>
                 </span>
@@ -206,7 +266,7 @@ export function Navbar() {
                       e.preventDefault();
                       handleAnchor(link.href);
                     }}
-                    className="min-h-[48px] px-4 flex items-center rounded-xl font-[var(--font-display)] text-xl text-[var(--c-ivory)] hover:bg-[rgba(212,175,55,0.1)] no-underline"
+                    className="min-h-[48px] px-4 flex items-center rounded-xl font-[var(--font-landing-display)] text-2xl text-[var(--c-ivory)] hover:bg-[rgba(212,175,55,0.1)] no-underline"
                   >
                     {link.label}
                   </a>

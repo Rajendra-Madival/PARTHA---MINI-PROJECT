@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { KalamkariVineTile } from '../components/Patterns';
 import { COPY } from '../content/copy';
 import { useReducedMotion } from '../motion/useReducedMotion';
 import { useScrollProgress } from '../motion/useScrollProgress';
@@ -104,9 +105,20 @@ export function Question() {
     <section
       id="question"
       ref={sectionRef}
+      data-section-mode="dark"
       aria-labelledby="question-heading"
       className="relative min-h-screen bg-[var(--c-night-0)] flex items-center justify-center px-5 py-24 overflow-hidden border-b border-[rgba(212,175,55,0.4)]"
     >
+      {/* Kalamkari vine at 8% opacity + forest mist at bottom edge (v2 Section 6.2) */}
+      <KalamkariVineTile opacity={0.08} className="text-[var(--c-gold)]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-56"
+        style={{
+          background:
+            'linear-gradient(to top, rgba(30, 77, 59, 0.45) 0%, rgba(30, 77, 59, 0.14) 55%, transparent 100%)',
+        }}
+      />
       {/* Footpath of small glowing diya dots receding toward a horizon */}
       <svg
         aria-hidden="true"

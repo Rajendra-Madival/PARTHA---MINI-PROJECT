@@ -1,6 +1,7 @@
 import { COPY } from '../content/copy';
 import { Divider } from '../components/Divider';
-import { GopuramSvg, LotusSvg } from '../components/MotifIcons';
+import { LotusSvg } from '../components/MotifIcons';
+import { MandalaMedallionSvg } from '../components/Patterns';
 import { scrollToTarget } from '../motion/lenis';
 import { useRouter, type AppRoute } from '../lib/router';
 
@@ -20,19 +21,20 @@ export function Footer() {
   return (
     <footer
       id="footer"
+      data-section-mode="dark"
       aria-labelledby="footer-heading"
-      className="relative bg-[var(--c-night-0)] pt-12 pb-14 px-5 overflow-hidden"
+      className="relative bg-[var(--c-forest-900)] pt-12 pb-14 px-5 overflow-hidden"
     >
       <h2 id="footer-heading" className="sr-only">
         {COPY.footer.heading}
       </h2>
 
-      {/* Small gopuram silhouette behind the footer at 5% opacity (Section 6.8) */}
+      {/* Mandala medallion watermark at 5% opacity (v2 Section 6.8) */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center opacity-5 text-[var(--c-gold)]"
       >
-        <GopuramSvg className="w-[560px] max-w-full h-auto" />
+        <MandalaMedallionSvg className="w-[460px] max-w-full h-auto" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
@@ -41,7 +43,7 @@ export function Footer() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-12">
           {COPY.footer.columns.map((column) => (
             <div key={column.heading}>
-              <h3 className="font-[var(--font-display)] text-base text-[var(--c-gold)] mb-3.5">
+              <h3 className="font-[var(--font-landing-display)] text-base text-[var(--c-gold)] mb-3.5">
                 {column.heading}
               </h3>
               <ul className="list-none p-0 m-0 space-y-1">
@@ -84,6 +86,10 @@ export function Footer() {
             </span>
           </p>
         </div>
+
+        <p className="text-xs text-[var(--c-ivory-dim)] mt-4 text-center sm:text-left m-0">
+          {COPY.footer.creditLine}
+        </p>
       </div>
     </footer>
   );

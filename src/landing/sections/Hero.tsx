@@ -177,10 +177,11 @@ export function Hero() {
     <section
       id="hero"
       ref={sectionRef}
+      data-section-mode="dark"
       aria-labelledby="hero-heading"
-      className="relative z-0 min-h-[100svh] flex flex-col items-center justify-center px-5 pt-24 pb-14 overflow-hidden bg-[var(--c-night-0)] border-b border-[rgba(212,175,55,0.4)]"
+      className="relative z-0 min-h-[100svh] flex flex-col items-center justify-center px-5 pt-24 pb-14 overflow-hidden bg-[linear-gradient(180deg,var(--c-night-0)_0%,var(--c-night-1)_70%,var(--c-forest)_100%)] border-b border-[rgba(212,175,55,0.4)]"
     >
-      {/* Fixed visual stage behind content (Section 6.1) */}
+      {/* Fixed visual stage behind content (v2 Section 6.1: Phase 4 ambient layers at 60% opacity) */}
       <div
         aria-hidden="true"
         data-hero-stage="true"
@@ -189,35 +190,37 @@ export function Hero() {
           isHeroVisible ? 'opacity-100 visible' : 'opacity-0 invisible',
         ].join(' ')}
       >
-        <HeroFallback2D
-          scrollProgress={clampedProgress}
-          reducedMotion={reducedMotion}
-          is3DReady={is3DReady}
-        />
+        <div className="absolute inset-0 opacity-60">
+          <HeroFallback2D
+            scrollProgress={clampedProgress}
+            reducedMotion={reducedMotion}
+            is3DReady={is3DReady}
+          />
 
-        {mount3D && (
-          <div
-            data-hero-layer="3d-canvas"
-            data-hero-3d-ready={is3DReady ? 'true' : 'false'}
-            className={[
-              'pointer-events-none absolute inset-0 transition-opacity duration-500',
-              is3DReady ? 'opacity-100' : 'opacity-0',
-            ].join(' ')}
-          >
-            <HeroSceneErrorBoundary onError={handleSceneError}>
-              <Suspense fallback={null}>
-                <LazyHeroScene
-                  scrollProgress={clampedProgress}
-                  reducedMotion={reducedMotion}
-                  isMobile={isMobile}
-                  isDesktop={isDesktop}
-                  isVisible={isHeroVisible}
-                  onReady={handleSceneReady}
-                />
-              </Suspense>
-            </HeroSceneErrorBoundary>
-          </div>
-        )}
+          {mount3D && (
+            <div
+              data-hero-layer="3d-canvas"
+              data-hero-3d-ready={is3DReady ? 'true' : 'false'}
+              className={[
+                'pointer-events-none absolute inset-0 transition-opacity duration-500',
+                is3DReady ? 'opacity-100' : 'opacity-0',
+              ].join(' ')}
+            >
+              <HeroSceneErrorBoundary onError={handleSceneError}>
+                <Suspense fallback={null}>
+                  <LazyHeroScene
+                    scrollProgress={clampedProgress}
+                    reducedMotion={reducedMotion}
+                    isMobile={isMobile}
+                    isDesktop={isDesktop}
+                    isVisible={isHeroVisible}
+                    onReady={handleSceneReady}
+                  />
+                </Suspense>
+              </HeroSceneErrorBoundary>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Subtle dark radial vignette behind hero copy for guaranteed WCAG contrast */}
@@ -235,7 +238,7 @@ export function Hero() {
             {COPY.hero.title}
           </h1>
 
-          <p className="font-[var(--font-display)] text-xl sm:text-2xl md:text-3xl text-[var(--c-ivory)] tracking-wide mb-3 max-w-2xl">
+          <p className="font-[var(--font-landing-display)] text-2xl sm:text-3xl md:text-4xl text-[var(--c-ivory)] tracking-wide mb-3 max-w-2xl">
             {COPY.hero.tagline}
           </p>
 

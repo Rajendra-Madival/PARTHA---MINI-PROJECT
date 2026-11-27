@@ -11,10 +11,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
     'text-[var(--c-night-0)] font-semibold bg-[linear-gradient(135deg,var(--c-saffron),var(--c-marigold))] shadow-[0_0_24px_rgba(244,162,27,0.25)] hover:shadow-[0_0_32px_rgba(244,162,27,0.45)]',
-  ghost:
-    'text-[var(--c-ivory)] bg-transparent hover:bg-[rgba(212,175,55,0.12)] border border-transparent hover:border-[rgba(212,175,55,0.35)]',
-  outline:
-    'text-[var(--c-ivory)] bg-[rgba(27,31,75,0.45)] border border-[rgba(212,175,55,0.45)] hover:border-[var(--c-saffron)] hover:bg-[rgba(38,43,99,0.7)]',
+  ghost: 'landing-btn-ghost border',
+  outline: 'landing-btn-outline border',
 };
 
 export function Button({

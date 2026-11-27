@@ -20,6 +20,7 @@ export function PlaceholderPage({ route }: { route: Exclude<AppRoute, '/'> }) {
   return (
     <main
       id="main-content"
+      data-section-mode="dark"
       data-route={route}
       className="min-h-screen flex items-center justify-center px-5 py-16 bg-[var(--grad-bg)]"
     >

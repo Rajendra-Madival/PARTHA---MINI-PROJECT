@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { COPY } from '../content/copy';
 import { HighlightCard } from '../components/HighlightCard';
+import { RangoliBorder } from '../components/Patterns';
 import { useReducedMotion } from '../motion/useReducedMotion';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -76,15 +77,17 @@ export function Highlights() {
     <section
       id="highlights"
       ref={sectionRef}
+      data-section-mode="light"
       aria-labelledby="highlights-heading"
-      className="bg-[var(--c-night-0)] py-24 sm:py-32 px-5 overflow-x-clip border-b border-[rgba(212,175,55,0.4)]"
+      className="relative bg-[var(--c-brand-green)] py-24 sm:py-32 px-5 overflow-x-clip border-b border-[rgba(20,56,42,0.18)]"
     >
+      <RangoliBorder className="absolute inset-x-0 top-0 text-[var(--c-forest)] opacity-45" />
       <div className="max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-14">
-          <h2 id="highlights-heading" className="text-section-h2 text-[var(--c-ivory)] mb-3">
+          <h2 id="highlights-heading" className="text-section-h2 text-[var(--c-forest-900)] mb-3">
             {COPY.highlights.heading}
           </h2>
-          <p className="text-body-copy text-[var(--c-ivory-dim)] mx-auto">
+          <p className="text-body-copy text-[var(--c-ink-soft)] mx-auto">
             {COPY.highlights.sub}
           </p>
         </div>

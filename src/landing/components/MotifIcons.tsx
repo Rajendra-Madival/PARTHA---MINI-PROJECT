@@ -12,47 +12,171 @@ function getA11yProps(label?: string) {
   return { 'aria-hidden': true as const };
 }
 
-export function LotusSvg({ label, className = '', ...rest }: MotifProps) {
+// Navbar lotus-and-bow mark (v2 Section 6.0)
+export function LotusBowMarkSvg({ label, className = '', ...rest }: MotifProps) {
   return (
     <svg
       viewBox="0 0 64 64"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       {...getA11yProps(label)}
       {...rest}
     >
-      <path d="M32 10C26 20 26 34 32 44C38 34 38 20 32 10Z" />
-      <path d="M32 44C21 40 16 28 18 18C24 22 28 32 32 44Z" />
-      <path d="M32 44C43 40 48 28 46 18C40 22 36 32 32 44Z" />
-      <path d="M32 44C17 44 10 36 10 27C16 29 24 35 32 44Z" />
-      <path d="M32 44C47 44 54 36 54 27C48 29 40 35 32 44Z" />
-      <path d="M18 50H46" />
-      <path d="M24 54H40" />
+      <path d="M16 14C34 22 34 42 16 50" />
+      <path d="M16 14V50" />
+      <path d="M38 22C33 29 33 37 38 44C43 37 43 29 38 22Z" />
+      <path d="M38 44C30 41 27 33 29 26C33 29 36 36 38 44Z" />
+      <path d="M38 44C46 41 49 33 47 26C43 29 40 36 38 44Z" />
+      <path d="M12 32H54" />
+      <path d="M49 28L54 32L49 36" />
     </svg>
   );
 }
 
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 1: Lamp / Diya with animatable flame)
 export function DiyaSvg({ label, className = '', ...rest }: MotifProps) {
   return (
     <svg
       viewBox="0 0 64 64"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       {...getA11yProps(label)}
       {...rest}
     >
-      <path d="M32 10C27 18 27 25 32 30C37 25 37 18 32 10Z" />
-      <path d="M32 17C30 21 30 24 32 27C34 24 34 21 32 17Z" />
+      <g data-motif-part="flame">
+        <path d="M32 10C26.5 18 26.5 25.5 32 30.5C37.5 25.5 37.5 18 32 10Z" />
+        <path d="M32 17C30 21 30 24.5 32 27.5C34 24.5 34 21 32 17Z" />
+      </g>
       <path d="M12 34H52C50 45 42 50 32 50C22 50 14 45 12 34Z" />
       <path d="M24 50L22 54H42L40 50" />
+    </svg>
+  );
+}
+
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 2: Lotus with animatable petals)
+export function LotusSvg({ label, className = '', ...rest }: MotifProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...getA11yProps(label)}
+      {...rest}
+    >
+      <g data-motif-part="petals">
+        <path d="M32 10C26 20 26 34 32 44C38 34 38 20 32 10Z" />
+        <path d="M32 44C21 40 16 28 18 18C24 22 28 32 32 44Z" />
+        <path d="M32 44C43 40 48 28 46 18C40 22 36 32 32 44Z" />
+        <path d="M32 44C17 44 10 36 10 27C16 29 24 35 32 44Z" />
+        <path d="M32 44C47 44 54 36 54 27C48 29 40 35 32 44Z" />
+      </g>
+      <path d="M18 50H46" />
+      <path d="M24 54H40" />
+    </svg>
+  );
+}
+
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 3: Bow with animatable bowstring & arrow)
+export function BowSvg({ label, className = '', ...rest }: MotifProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...getA11yProps(label)}
+      {...rest}
+    >
+      <path d="M22 10C38 18 38 46 22 54" />
+      <g data-motif-part="bowstring">
+        <path d="M22 10V54" />
+        <path d="M14 32H52" />
+        <path d="M46 27L52 32L46 37" />
+        <path d="M14 29L18 32L14 35" />
+      </g>
+    </svg>
+  );
+}
+
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 4: Palm-leaf manuscript with animatable leaf)
+export function PalmLeafSvg({ label, className = '', ...rest }: MotifProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...getA11yProps(label)}
+      {...rest}
+    >
+      <g data-motif-part="leaf">
+        <rect x="10" y="18" width="44" height="28" rx="4" />
+        <circle cx="21" cy="32" r="2.2" />
+        <circle cx="43" cy="32" r="2.2" />
+        <path d="M27 26H37M26 32H38M27 38H37" />
+      </g>
+    </svg>
+  );
+}
+
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 5: Shield with animatable sweep)
+export function ShieldSvg({ label, className = '', ...rest }: MotifProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...getA11yProps(label)}
+      {...rest}
+    >
+      <path d="M32 10L50 17V31C50 43 42 50 32 54C22 50 14 43 14 31V17L32 10Z" />
+      <path d="M32 17L43 21.5V31C43 39 38 44 32 47" strokeOpacity="0.55" />
+      <path data-motif-part="sweep" d="M24 33L30 39L41 25" />
+    </svg>
+  );
+}
+
+// ART: PLACEHOLDER — replace with designer SVG (Highlight motif 6: Conch horn with animatable pulse)
+export function ConchSvg({ label, className = '', ...rest }: MotifProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...getA11yProps(label)}
+      {...rest}
+    >
+      <g data-motif-part="pulse">
+        <path d="M32 10C43 16 48 28 44 40C41 48 35 54 28 54C20 54 16 47 18 38C20 29 24 18 32 10Z" />
+        <path d="M26 24C31 24 36 27 37 33C38 38 34 43 29 43C25 43 23 39 24 35" />
+        <path d="M30 33C31 33 32 34 32 36" />
+      </g>
     </svg>
   );
 }
@@ -78,69 +202,7 @@ export function ChakraSvg({ label, className = '', ...rest }: MotifProps) {
   );
 }
 
-export function BowSvg({ label, className = '', ...rest }: MotifProps) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...getA11yProps(label)}
-      {...rest}
-    >
-      <path d="M22 10C38 18 38 46 22 54" />
-      <path d="M22 10V54" />
-      <path d="M14 32H52" />
-      <path d="M46 27L52 32L46 37" />
-      <path d="M14 29L18 32L14 35" />
-    </svg>
-  );
-}
-
-export function PalmLeafSvg({ label, className = '', ...rest }: MotifProps) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...getA11yProps(label)}
-      {...rest}
-    >
-      <rect x="10" y="18" width="44" height="28" rx="4" />
-      <circle cx="22" cy="32" r="2.5" />
-      <circle cx="42" cy="32" r="2.5" />
-      <path d="M28 26H36M26 32H38M28 38H36" />
-    </svg>
-  );
-}
-
-export function ConchSvg({ label, className = '', ...rest }: MotifProps) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...getA11yProps(label)}
-      {...rest}
-    >
-      <path d="M32 10C43 16 48 28 44 40C41 48 35 54 28 54C20 54 16 47 18 38C20 29 24 18 32 10Z" />
-      <path d="M26 24C31 24 36 27 37 33C38 38 34 43 29 43C25 43 23 39 24 35" />
-      <path d="M30 33C31 33 32 34 32 36" />
-    </svg>
-  );
-}
-
+// ART: PLACEHOLDER — replace with designer SVG
 export function RathaSvg({ label, className = '', ...rest }: MotifProps) {
   return (
     <svg
@@ -225,18 +287,20 @@ export function MotifIcon({
   className?: string;
 }) {
   switch (name) {
-    case 'diya':
+    case 'lamp':
       return <DiyaSvg label={label} className={className} />;
     case 'lotus':
       return <LotusSvg label={label} className={className} />;
     case 'bow':
       return <BowSvg label={label} className={className} />;
-    case 'chakra':
-      return <ChakraSvg label={label} className={className} />;
     case 'palmLeaf':
       return <PalmLeafSvg label={label} className={className} />;
+    case 'shield':
+      return <ShieldSvg label={label} className={className} />;
     case 'conch':
       return <ConchSvg label={label} className={className} />;
+    case 'chakra':
+      return <ChakraSvg label={label} className={className} />;
     case 'ratha':
       return <RathaSvg label={label} className={className} />;
     case 'dwara':

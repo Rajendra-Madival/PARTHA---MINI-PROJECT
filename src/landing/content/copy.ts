@@ -1,10 +1,11 @@
 export type MotifName =
-  | 'diya'
+  | 'lamp'
   | 'lotus'
   | 'bow'
-  | 'chakra'
   | 'palmLeaf'
+  | 'shield'
   | 'conch'
+  | 'chakra'
   | 'ratha'
   | 'dwara'
   | 'gopuram';
@@ -46,7 +47,7 @@ export const COPY = {
   brand: {
     name: 'Partha',
     skipToContent: 'Skip to main content',
-    logoLabel: 'Partha lotus emblem',
+    logoLabel: 'Partha lotus and bow emblem',
   },
   nav: {
     ariaLabel: 'Primary navigation',
@@ -65,7 +66,8 @@ export const COPY = {
   hero: {
     title: 'Partha',
     tagline: 'Where every student finds a guru.',
-    subline: 'Mentorship for the path ahead.',
+    // CONFIRM: copy owner
+    subline: 'Alumni mentorship for the path ahead.',
     primaryCta: 'Enter the Gurukul',
     secondaryCta: 'Explore the journey',
     scrollCueLabel: 'Scroll to explore the journey',
@@ -78,28 +80,31 @@ export const COPY = {
   },
   gurukul: {
     heading: 'The Gurukul, reimagined.',
-    body: 'Partha connects students with mentors who have walked the road before them.',
-    archLabelPrefix: 'Gurukul Arch',
-    mobileRegionLabel: 'Gurukul pillars',
+    // CONFIRM: copy owner
+    body: 'Partha connects students with alumni who have walked the road before them.',
+    sceneLabel: 'Gurukul courtyard under a banyan tree with a sage-teacher and three students',
     pillars: [
       {
         id: 'serves',
         title: 'Who it serves',
-        body: 'Students from school to postgraduate level, across fields and cities.',
+        // CONFIRM: copy owner
+        body: 'Students looking for guidance, and alumni ready to give back.',
         // VERIFY: native speaker review before launch
         sanskritLabel: 'शिष्य · The Seeker',
       },
       {
         id: 'works',
         title: 'How it works',
-        body: 'Browse verified mentors, book a session, and grow over time.',
+        // CONFIRM: copy owner
+        body: 'Find an alumnus, send a request, and keep talking once they accept.',
         // VERIFY: native speaker review before launch
         sanskritLabel: 'गुरु · The Guide',
       },
       {
         id: 'matters',
         title: 'Why it matters',
-        body: 'Good guidance turns a question into a direction.',
+        // CONFIRM: copy owner
+        body: "A senior's advice turns a question into a direction.",
         // VERIFY: native speaker review before launch
         sanskritLabel: 'मार्ग · The Path',
       },
@@ -110,87 +115,91 @@ export const COPY = {
     sub: 'Six tools for the road ahead.',
     learnMore: 'Learn more',
     showLess: 'Show less',
-    // TODO(content): Confirm detail bullets with the product team (Section 6.4)
     items: [
       {
         id: 'find-your-guru',
         title: 'Find Your Guru',
-        icon: 'diya',
-        description: 'Browse verified mentors by field, skill, and experience.',
+        icon: 'lamp',
+        // CONFIRM: copy owner
+        description: 'Browse verified alumni by branch, company, domain, and skills.',
         direction: 'left',
-        // TODO(content): Confirm detail bullets with the product team
+        // CONFIRM: copy owner
         details: [
-          'Filter by field, language, and experience',
-          'See availability',
-          'Read verified profiles',
+          'Filter by branch, domain, and company',
+          'See what each alumnus is open to',
+          'Read public profiles',
         ],
       },
       {
-        id: 'book-guidance-sessions',
-        title: 'Book Guidance Sessions',
+        id: 'request-mentorship',
+        title: 'Request Mentorship',
         icon: 'lotus',
-        description: 'Schedule one-to-one or group mentoring calls.',
+        // CONFIRM: copy owner
+        description:
+          'Ask for career guidance, a resume review, an internship referral, or project help.',
         direction: 'bottom',
-        // TODO(content): Confirm detail bullets with the product team
+        // CONFIRM: copy owner
         details: [
-          'One-to-one or group calls',
-          'Pick a time that fits',
-          'Reminders before each session',
+          'Choose your goal',
+          'Send a short message',
+          'Chat once the alumnus accepts',
         ],
       },
       {
         id: 'discover-opportunities',
         title: 'Discover Opportunities',
         icon: 'bow',
-        description:
-          'Internships, scholarships, competitions, and fellowships curated for students.',
+        // CONFIRM: copy owner
+        description: 'Internships, jobs, and projects posted by verified alumni.',
         direction: 'right',
-        // TODO(content): Confirm detail bullets with the product team
+        // CONFIRM: copy owner
         details: [
-          'Internships, scholarships, competitions, fellowships',
-          'Matched to your profile',
-          'Deadlines in one place',
+          'Internships, full-time roles, and collaborative projects',
+          'Posted by verified alumni',
+          'Apply through the listed link',
         ],
       },
       {
-        id: 'track-your-growth',
-        title: 'Track Your Growth',
-        icon: 'chakra',
-        description:
-          'A personal dashboard with goals, dharma-aligned milestones, and progress.',
-        direction: 'left',
-        // TODO(content): Confirm detail bullets with the product team
-        details: [
-          'Set goals with your mentor',
-          'Milestones and progress',
-          'Session history',
-        ],
-      },
-      {
-        id: 'community-of-shishyas',
-        title: 'Community of Shishyas',
+        id: 'knowledge-hub',
+        title: 'Knowledge Hub',
         icon: 'palmLeaf',
-        description: 'Peer discussions, study circles, and shared learning.',
-        direction: 'bottom',
-        // TODO(content): Confirm detail bullets with the product team
+        // CONFIRM: copy owner
+        description: 'Interview prep and career guides written by alumni.',
+        direction: 'left',
+        // CONFIRM: copy owner
         details: [
-          'Topic-based discussion rooms',
-          'Study circles',
-          'Peer Q&A',
+          'Guides by domain',
+          'Read time shown',
+          'Upvote the ones that help',
         ],
       },
       {
-        id: 'mentor-insights',
-        title: 'Mentor Insights',
-        icon: 'conch',
+        id: 'verified-and-private',
+        title: 'Verified and Private',
+        icon: 'shield',
+        // CONFIRM: copy owner
         description:
-          'Ratings, reviews, and profiles to help you choose with confidence.',
-        direction: 'right',
-        // TODO(content): Confirm detail bullets with the product team
+          'Alumni are verified, and their contact details unlock only after they accept you.',
+        direction: 'bottom',
+        // CONFIRM: copy owner
         details: [
-          'Ratings and reviews',
-          'Verified credentials',
-          'Clear session summaries',
+          'Verification status on every profile',
+          'Email, phone, and LinkedIn stay private',
+          'Shared only after acceptance',
+        ],
+      },
+      {
+        id: 'save-for-later',
+        title: 'Save for Later',
+        icon: 'conch',
+        // CONFIRM: copy owner
+        description: 'Bookmark alumni and opportunities to come back to.',
+        direction: 'right',
+        // CONFIRM: copy owner
+        details: [
+          'Save mentors and listings',
+          'Keep a shortlist',
+          'Return when you are ready',
         ],
       },
     ] satisfies readonly HighlightItem[],
@@ -204,26 +213,25 @@ export const COPY = {
         threshold: 0.2,
         title: 'Create your profile',
         description:
-          'Tell us your field, your goals, and where you are starting from.',
+          'Share your branch, semester, and the skills, domain, and company you are aiming for.',
       },
       {
         step: 2,
         threshold: 0.45,
-        title: 'Meet your mentor',
-        description: 'Match with a guide who has walked a similar road.',
+        title: 'Meet your alumni mentor',
+        description: 'Browse verified alumni and find someone who has walked your road.',
       },
       {
         step: 3,
         threshold: 0.7,
-        title: 'Learn and grow together',
-        description: 'Sessions, goals, and feedback that build over time.',
+        title: 'Ask and learn',
+        description: 'Send a mentorship request, and chat once it is accepted.',
       },
       {
         step: 4,
         threshold: 0.9,
         title: 'Unlock opportunities',
-        description:
-          'Internships, scholarships, and competitions matched to your growth.',
+        description: 'Find internships, jobs, and projects posted by alumni.',
       },
     ] satisfies readonly EpicMilestone[],
   },
@@ -238,17 +246,16 @@ export const COPY = {
     playText: 'Play',
     slidesListLabel: 'Story slides',
     slideTabPrefix: 'Show story',
-    activeIndicatorLabel: 'Featured story',
-    // PLACEHOLDER: Confirm real student testimonials before launch (Section 6.6 & 14)
+    // PLACEHOLDER: Confirm real student testimonials before launch (v1 Section 14)
     items: [
       {
         id: 'sample-1',
         // PLACEHOLDER
         quote:
-          'My first session turned months of scattered reading into a clear six-week plan for my fellowship application.',
+          'One resume review from an alumnus in my domain turned scattered preparation into a clear six-week plan.',
         name: 'Aarav Sharma', // PLACEHOLDER
-        field: 'Undergraduate · Computer Science', // PLACEHOLDER
-        city: 'Pune', // PLACEHOLDER
+        field: 'Semester 6 · Computer Science', // PLACEHOLDER
+        city: 'Hubballi', // PLACEHOLDER
         tiltDeg: -0.9,
         isPlaceholder: true,
       },
@@ -256,10 +263,10 @@ export const COPY = {
         id: 'sample-2',
         // PLACEHOLDER
         quote:
-          'Having a mentor who came from a small town helped me prepare for scholarship interviews without second-guessing myself.',
+          'Reading alumni interview guides and getting honest project help gave me confidence before my internship applications.',
         name: 'Meera Nair', // PLACEHOLDER
-        field: 'Class 12 · Humanities', // PLACEHOLDER
-        city: 'Kochi', // PLACEHOLDER
+        field: 'Semester 5 · Information Science', // PLACEHOLDER
+        city: 'Belagavi', // PLACEHOLDER
         tiltDeg: 0.7,
         isPlaceholder: true,
       },
@@ -267,14 +274,20 @@ export const COPY = {
         id: 'sample-3',
         // PLACEHOLDER
         quote:
-          'The opportunity deadlines and study circles kept me consistent through my first research internship search.',
+          'Bookmarking relevant roles and talking directly with a senior mentor after acceptance kept my job search focused.',
         name: 'Rohan Verma', // PLACEHOLDER
-        field: 'Postgraduate · Biotechnology', // PLACEHOLDER
-        city: 'Jaipur', // PLACEHOLDER
+        field: 'Semester 7 · Electronics & Communication', // PLACEHOLDER
+        city: 'Bengaluru', // PLACEHOLDER
         tiltDeg: -0.5,
         isPlaceholder: true,
       },
     ] satisfies readonly TestimonialItem[],
+  },
+  giveBack: {
+    heading: 'Walked the road? Guide the next seeker.',
+    // CONFIRM: copy owner
+    body: 'Alumni can mentor students, post internships and jobs, and share guides.',
+    cta: 'Join as alumni',
   },
   login: {
     heading: 'Walk through the gate.',
@@ -336,11 +349,12 @@ export const COPY = {
     // VERIFY: native speaker review before launch
     shloka: 'विद्या ददाति विनयम्',
     shlokaTranslation: 'Knowledge gives humility',
+    creditLine: 'Inspired by the Ramayana and the Mahabharata.',
   },
   routes: {
     signup: {
       title: 'Create your seeker profile',
-      body: 'Registration is coming soon. Return to the gate to explore Partha.',
+      body: 'Registration will connect to the Partha portal in the next phase. Return to the gate to explore Partha.',
       backLabel: 'Back to Partha',
     },
     forgotPassword: {
@@ -350,7 +364,7 @@ export const COPY = {
     },
     dashboard: {
       title: 'Welcome to the Gurukul',
-      body: 'You have crossed the gate. Your mentor matches, sessions, and opportunities live here.',
+      body: 'You have crossed the gate. Your mentor matches, conversations, and opportunities live here.',
       signOutLabel: 'Return to landing page',
     },
     privacy: {

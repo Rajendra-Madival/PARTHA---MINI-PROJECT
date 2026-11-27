@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { COPY } from '../content/copy';
 import { ChakraSvg, RathaSvg } from '../components/MotifIcons';
+import { KalamkariVineTile, MandalaMedallionSvg } from '../components/Patterns';
 import { useReducedMotion } from '../motion/useReducedMotion';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -113,10 +114,18 @@ export function EpicPath() {
     <section
       id="epic-path"
       ref={sectionRef}
+      data-section-mode="dark"
       aria-labelledby="epic-path-heading"
       className="relative bg-[var(--c-night-1)] py-24 sm:py-28 px-5 overflow-hidden border-b border-[rgba(212,175,55,0.4)]"
     >
-      <div className="max-w-6xl mx-auto">
+      <KalamkariVineTile opacity={0.06} className="text-[var(--c-gold)]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10 text-[var(--c-gold)]"
+      >
+        <MandalaMedallionSvg className="w-[540px] max-w-[90vw] h-auto" />
+      </div>
+      <div className="relative z-10 max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-14">
           <h2 id="epic-path-heading" className="text-section-h2 text-[var(--c-ivory)]">
             {COPY.epicPath.heading}
@@ -137,8 +146,8 @@ export function EpicPath() {
                   <path
                     d={ROAD_PATH_D}
                     fill="none"
-                    stroke="#D4AF37"
-                    strokeOpacity="0.22"
+                    stroke="#B5652B"
+                    strokeOpacity="0.6"
                     strokeWidth="2.5"
                     strokeDasharray="6 8"
                   />
@@ -216,7 +225,7 @@ export function EpicPath() {
           >
             <div
               aria-hidden="true"
-              className="absolute left-5 top-3 bottom-3 w-0.5 bg-[rgba(212,175,55,0.22)]"
+              className="absolute left-5 top-3 bottom-3 w-0.5 bg-[rgba(181,101,43,0.45)]"
             />
             <div
               aria-hidden="true"

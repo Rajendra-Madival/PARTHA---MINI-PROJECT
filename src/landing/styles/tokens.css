@@ -1,24 +1,49 @@
-.partha-landing-v1 {
-  --c-night-0: #0B1026;    /* deepest background */
-  --c-night-1: #1B1F4B;    /* section background */
-  --c-night-2: #262B63;    /* raised surfaces, cards */
-  --c-saffron: #F4A21B;    /* primary accent, CTAs */
-  --c-marigold: #FF7A1A;   /* gradient partner for saffron */
-  --c-vermilion: #C0392B;  /* sparing emphasis only. Never for errors. */
-  --c-gold: #D4AF37;       /* borders, ornaments, heading details */
-  --c-ivory: #FFF6E3;      /* primary text on dark */
-  --c-ivory-dim: #D9CFB8;  /* secondary text. Must pass 4.5:1 on night-1. */
-  --c-lotus: #E88DB0;      /* secondary accent */
-  --c-peacock: #1F7A7A;    /* secondary accent */
-  --c-focus: #FFD166;      /* focus ring */
-  --c-error: #F2B8A2;      /* form error text on dark */
+/*
+ * PARTHA Landing v2 Epic Palette + Real App Brand Bridge
+ * Registered through Tailwind 4 @theme using prefixed --c-* tokens so
+ * existing app tokens (--background, --primary, --font-display, etc.) stay untouched.
+ */
+@theme {
+  /* Dark epic sections */
+  --c-night-0: #0B1026;
+  --c-night-1: #1B1F4B;
+  --c-forest: #1E4D3B;
+  --c-forest-900: #14382A;
+  --c-peacock: #1F7A7A;
 
+  /* Accents */
+  --c-saffron: #F4A21B;
+  --c-marigold: #FF7A1A;
+  --c-vermilion: #B83227;
+  --c-terracotta: #B5652B;
+  --c-bronze: #8C6A3B;
+  --c-gold: #D4AF37;
+  --c-lotus: #E88DB0;
+
+  /* Text and surfaces */
+  --c-ivory: #FFF6E3;
+  --c-ivory-dim: #D9CFB8;
+  --c-parchment: #F3E5C0;
+  --c-ink: #1B1F4B;
+  --c-ink-soft: #3B4170;
+
+  /* Feedback */
+  --c-error: #F2B8A2;
+  --c-error-light: #9B2C1F;
+  --c-focus: #FFD166;
+
+  /* Client brand values audited from src/index.css (--background and --accent) */
+  --c-brand-white: #FAF7F0;
+  --c-brand-green: #ECFDF5;
+}
+
+.partha-landing-v1 {
   --grad-cta: linear-gradient(135deg, var(--c-saffron), var(--c-marigold));
-  --grad-bg: linear-gradient(180deg, var(--c-night-0) 0%, var(--c-night-1) 100%);
+  --grad-bg: linear-gradient(180deg, var(--c-night-0) 0%, var(--c-night-1) 70%, var(--c-forest) 100%);
   --grad-gold: linear-gradient(135deg, #FFF6E3 0%, #D4AF37 45%, #F4A21B 100%);
 
-  --font-display: 'Cinzel', Georgia, serif;
-  --font-devanagari: 'Noto Serif Devanagari', Georgia, serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mixed: 'Mukta', 'Inter', system-ui, sans-serif;
+  --font-landing-display: 'Cormorant Garamond', Georgia, serif;
+  --font-landing-devanagari: 'Noto Serif Devanagari', Georgia, serif;
+  --font-landing-body: 'Montserrat', system-ui, -apple-system, sans-serif;
+  --font-landing-mixed: 'Noto Serif Devanagari', 'Montserrat', system-ui, sans-serif;
 }

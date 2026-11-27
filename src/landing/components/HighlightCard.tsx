@@ -48,16 +48,15 @@ export function HighlightCard({ item }: HighlightCardProps) {
           : 'transform 400ms ease-out, border-color 400ms ease-out, box-shadow 400ms ease-out',
       }}
       className={[
-        'highlight-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between',
-        'bg-[var(--c-night-2)] border',
+        'highlight-card gold-leaf-frame rounded-2xl p-6 sm:p-7 flex flex-col justify-between',
         tilt.hovered && !reducedMotion
-          ? 'border-[var(--c-gold)] shadow-[0_0_28px_rgba(212,175,55,0.24)]'
-          : 'border-[rgba(212,175,55,0.32)]',
+          ? 'shadow-[0_14px_34px_rgba(20,56,42,0.12),0_0_24px_rgba(212,175,55,0.28)]'
+          : 'shadow-[0_8px_24px_rgba(20,56,42,0.06)]',
       ].join(' ')}
     >
       <div>
         <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[rgba(11,16,38,0.65)] border border-[rgba(212,175,55,0.35)] text-[var(--c-gold)]"
+          className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[var(--c-brand-green)] border border-[rgba(20,56,42,0.24)] text-[var(--c-forest-900)]"
           style={{
             transform: tilt.hovered && !reducedMotion ? 'rotate(6deg)' : 'rotate(0deg)',
             transition: tilt.hovered ? 'transform 200ms ease-out' : 'transform 400ms ease-out',
@@ -66,8 +65,8 @@ export function HighlightCard({ item }: HighlightCardProps) {
           <MotifIcon name={item.icon} className="w-7 h-7" />
         </div>
 
-        <h3 className="text-card-h3 text-[var(--c-gold)] mb-2.5">{item.title}</h3>
-        <p className="text-base text-[var(--c-ivory-dim)] leading-relaxed m-0">
+        <h3 className="text-card-h3 text-[var(--c-forest-900)] font-semibold mb-2.5">{item.title}</h3>
+        <p className="text-base text-[var(--c-ink)] leading-relaxed m-0">
           {item.description}
         </p>
 
@@ -81,11 +80,11 @@ export function HighlightCard({ item }: HighlightCardProps) {
               transition={{ duration: reducedMotion ? 0.18 : 0.28, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <ul className="mt-4 pt-4 border-t border-[rgba(212,175,55,0.28)] space-y-2 text-sm text-[var(--c-ivory)] list-none p-0 m-0">
+              <ul className="mt-4 pt-4 border-t border-[rgba(20,56,42,0.18)] space-y-2 text-sm text-[var(--c-ink)] list-none p-0 m-0">
                 {item.details.map((bullet) => (
                   <li key={bullet} className="flex items-start gap-2.5">
                     <span
-                      className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--c-saffron)] shrink-0"
+                      className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--c-terracotta)] shrink-0"
                       aria-hidden="true"
                     />
                     <span>{bullet}</span>
@@ -103,7 +102,7 @@ export function HighlightCard({ item }: HighlightCardProps) {
           aria-expanded={expanded}
           aria-controls={detailsId}
           onClick={() => setExpanded((prev) => !prev)}
-          className="inline-flex items-center gap-2 min-h-[44px] px-3 -ml-3 rounded-lg text-sm font-medium text-[var(--c-saffron)] hover:text-[var(--c-ivory)] hover:bg-[rgba(244,162,27,0.12)] transition-colors duration-200 cursor-pointer"
+          className="inline-flex items-center gap-2 min-h-[44px] px-3 -ml-3 rounded-lg text-sm font-semibold text-[var(--c-forest-900)] hover:text-[var(--c-forest)] hover:bg-[rgba(20,56,42,0.08)] transition-colors duration-200 cursor-pointer"
         >
           <span>{expanded ? COPY.highlights.showLess : COPY.highlights.learnMore}</span>
           <svg

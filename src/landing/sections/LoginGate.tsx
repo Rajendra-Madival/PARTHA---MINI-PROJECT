@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { COPY } from '../content/copy';
 import { Button } from '../components/Button';
 import { DwaraArchSvg } from '../components/MotifIcons';
+import { KalamkariVineTile } from '../components/Patterns';
 import { PasswordField } from '../components/PasswordField';
 import { useRouter } from '../lib/router';
 
@@ -13,9 +14,11 @@ export function LoginGate() {
   return (
     <section
       id="login-gate"
+      data-section-mode="dark"
       aria-labelledby="login-gate-heading"
-      className="relative min-h-screen bg-[var(--c-night-1)] flex items-center justify-center px-5 py-24 overflow-hidden"
+      className="relative min-h-screen bg-[var(--c-night-0)] flex items-center justify-center px-5 py-24 overflow-hidden"
     >
+      <KalamkariVineTile opacity={0.06} className="text-[var(--c-gold)]" />
       {/* Soft radial saffron glow behind the gate */}
       <div
         aria-hidden="true"

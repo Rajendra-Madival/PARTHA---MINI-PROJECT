@@ -1,4 +1,12 @@
 import { useEffect } from 'react';
+import '@fontsource/cormorant-garamond/500.css';
+import '@fontsource/cormorant-garamond/600.css';
+import '@fontsource/cormorant-garamond/700.css';
+import '@fontsource/montserrat/400.css';
+import '@fontsource/montserrat/500.css';
+import '@fontsource/montserrat/600.css';
+import '@fontsource/noto-serif-devanagari/400.css';
+import '@fontsource/noto-serif-devanagari/600.css';
 import './styles/globals.css';
 import { COPY } from './content/copy';
 import { initScrollEngine } from './motion/lenis';
@@ -11,6 +19,7 @@ import { Gurukul } from './sections/Gurukul';
 import { Highlights } from './sections/Highlights';
 import { EpicPath } from './sections/EpicPath';
 import { Testimonials } from './sections/Testimonials';
+import { GiveBack } from './sections/GiveBack';
 import { LoginGate } from './sections/LoginGate';
 import { Footer } from './sections/Footer';
 import { PlaceholderPage } from './sections/PlaceholderPage';
@@ -47,6 +56,7 @@ function LandingRoutes() {
         <Highlights />
         <EpicPath />
         <Testimonials />
+        <GiveBack />
         <LoginGate />
       </main>
       <Footer />
