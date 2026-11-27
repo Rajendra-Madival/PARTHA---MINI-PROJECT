@@ -66,7 +66,14 @@ export function Navbar() {
 
         <button
           type="button"
-          onClick={() => scrollToTarget('#scene-gate', { duration: 1.4 })}
+          onClick={() => {
+            const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
+            if (gateTrigger) {
+              scrollToTarget(gateTrigger.end, { duration: 1.4 });
+              return;
+            }
+            scrollToTarget('#scene-gate', { duration: 1.4 });
+          }}
           className={[
             'min-h-[44px] min-w-[44px] px-5 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer border',
             isDark

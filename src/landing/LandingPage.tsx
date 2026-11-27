@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import '@fontsource/cormorant-garamond/500.css';
@@ -16,19 +16,52 @@ import { initScrollEngine, scrollToTarget } from './motion/lenis';
 import { useReducedMotion } from './motion/useReducedMotion';
 import { ArrowsPathOverlay } from './components/ArrowsPathOverlay';
 import { HeroBowOverlay } from './components/HeroBowController';
-import { MouseTrailCanvas } from './components/MouseTrailCanvas';
 import { Navbar } from './components/Navbar';
 import { SceneBackdrop } from './components/SceneBackdrop';
-import { GateArtworkStage, KURUKSHETRA_TORCHES, SceneProps } from './components/SceneProps';
+import { GateArtworkStage, SceneProps } from './components/SceneProps';
 import { StepCard } from './components/StepCard';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export interface LandingPageProps {
   onOpenAuth?: (mode: 'login' | 'register') => void;
+  gateAuthSlot?: ReactNode;
 }
 
-export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
+function FallbackGateLogin({ onOpenAuth }: { onOpenAuth?: (mode: 'login' | 'register') => void }) {
+  return (
+    <article
+      data-gate-fallback-login="true"
+      className="max-w-[380px] w-full rounded-2xl p-6 border backdrop-blur-md bg-[rgba(255,254,250,0.95)] border-[rgba(20,56,42,0.22)] text-[var(--c-ink)] shadow-[0_20px_48px_rgba(20,56,42,0.16)] text-center"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--c-forest)] mb-1 m-0">
+        Stop 5 of 5 · {COPY.waypoints[4].epicTitle}
+      </p>
+      <h3 className="font-[var(--font-landing-display)] text-3xl font-bold text-[var(--c-forest-900)] mb-2 m-0">
+        {COPY.gate.heading}
+      </h3>
+      <p className="text-sm text-[var(--c-ink)] mb-5 m-0">{COPY.waypoints[4].body}</p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onOpenAuth?.('login')}
+          className="v3-btn-primary flex-1 min-h-[44px] px-4 py-2 rounded-xl text-sm cursor-pointer"
+        >
+          {COPY.gate.loginCta}
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenAuth?.('register')}
+          className="flex-1 min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-forest-900)] bg-[#FFFEFA] text-[var(--c-forest-900)] hover:bg-[var(--c-brand-green)] transition-colors cursor-pointer"
+        >
+          {COPY.gate.signupCta}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {}) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const gateSectionRef = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
@@ -44,7 +77,6 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
 
   const [ramaPose, setRamaPose] = useState<'ready' | 'draw'>('ready');
   const [hasHeroShot, setHasHeroShot] = useState<boolean>(reducedMotion);
-  const [pathArrowVisible, setPathArrowVisible] = useState<boolean>(reducedMotion);
 
   const showHorizonDebug = useMemo(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return false;
@@ -85,7 +117,7 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Scene 5 (The Gate) pinned zoom: doors open, zoom toward doorway with white-gold flash, highlight login card
+  // Scene 5 (The Gate) pinned sequence: doors open -> deep zoom into doorway flash -> fade in real login page
   useEffect(() => {
     const gateEl = gateSectionRef.current;
     if (!gateEl || reducedMotion) return;
@@ -94,36 +126,53 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
       ScrollTrigger.create({
         id: 'gate-pinned-zoom',
         trigger: gateEl,
-        start: 'top top',
-        end: '+=125%',
+        start: 'bottom bottom',
+        end: '+=180%',
         pin: true,
         pinSpacing: true,
         scrub: 0.6,
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           const p = Math.min(Math.max(self.progress, 0), 1);
-          const doorP = Math.min(1, p / 0.52);
-          const zoomP = Math.min(1, Math.max(0, (p - 0.14) / 0.86));
-          const flashP =
-            p < 0.58 ? (p / 0.58) * 0.78 : Math.max(0.2, 0.78 - ((p - 0.58) / 0.42) * 0.58);
+
+          // 0..32%: doors swing open & Stop 5 ring fades cleanly
+          const doorP = Math.min(1, p / 0.32);
+          // 20..82%: deep zoom into the doorway center (1x -> 3.4x)
+          const zoomP = Math.min(1, Math.max(0, (p - 0.2) / 0.62));
+          // 30..78%: white-gold doorway flash expands across screen
+          const flashP = Math.min(1, Math.max(0, (p - 0.3) / 0.48));
+          // 72..100%: real login page fades in inside the light
+          const loginP = Math.min(1, Math.max(0, (p - 0.72) / 0.28));
 
           const closedEl = gateEl.querySelector<HTMLElement>('[data-gate-layer="closed"]');
           const openEl = gateEl.querySelector<HTMLElement>('[data-gate-layer="open"]');
           const wrapperEl = gateEl.querySelector<HTMLElement>('[data-gate-wrapper="true"]');
+          const wallExts = gateEl.querySelectorAll<HTMLElement>('[data-gate-wall-ext="true"]');
+          const ringEl = gateEl.querySelector<HTMLElement>('[data-waypoint-stop="5"]');
           const flashEl = gateEl.querySelector<HTMLElement>('[data-gate-flash="true"]');
-          const cardWrapEl = gateEl.querySelector<HTMLElement>('[data-gate-card-wrap="true"]');
+          const loginEl = gateEl.querySelector<HTMLElement>('[data-gate-login-overlay="true"]');
 
           if (closedEl) closedEl.style.opacity = String(1 - doorP);
           if (openEl) openEl.style.opacity = String(doorP);
+          if (ringEl) ringEl.style.opacity = String(Math.max(0, 1 - doorP * 1.4));
+
           if (wrapperEl) {
-            wrapperEl.style.transform = `scale(${(1 + zoomP * 0.22).toFixed(4)})`;
+            const scale = 1 + zoomP * zoomP * 2.4;
+            wrapperEl.style.transform = `scale(${scale.toFixed(4)})`;
           }
+
+          wallExts.forEach((ext) => {
+            ext.style.opacity = String(Math.max(0, 1 - zoomP * 1.6));
+          });
+
           if (flashEl) {
             flashEl.style.opacity = String(flashP.toFixed(3));
           }
-          if (cardWrapEl) {
-            const cardScale = 0.96 + zoomP * 0.04;
-            cardWrapEl.style.transform = `scale(${cardScale.toFixed(4)})`;
+
+          if (loginEl) {
+            loginEl.style.opacity = String(loginP.toFixed(3));
+            loginEl.style.transform = `scale(${(0.96 + loginP * 0.04).toFixed(4)})`;
+            loginEl.style.pointerEvents = loginP > 0.35 ? 'auto' : 'none';
           }
         },
       });
@@ -147,20 +196,18 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
     });
   }, []);
 
-  const handleActiveSceneChange = useCallback((activeSceneId: StoryWaypointScene['id'] | null) => {
-    setExpandedStopId(activeSceneId);
-    if (activeSceneId) {
-      setArrivedScenes((prev) =>
-        prev[activeSceneId] ? prev : { ...prev, [activeSceneId]: true },
-      );
-    }
-  }, []);
-
   const handleToggleCard = useCallback((id: StoryWaypointScene['id']) => {
     setExpandedStopId((prev) => (prev === id ? null : id));
   }, []);
 
   const handleWaypointSelect = useCallback((scene: StoryWaypointScene) => {
+    if (scene.id === 'gate') {
+      const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
+      if (gateTrigger) {
+        scrollToTarget(gateTrigger.end, { duration: 1.4 });
+        return;
+      }
+    }
     scrollToTarget(`#scene-${scene.id}`, { duration: 1.4 });
     setArrivedScenes((prev) => (prev[scene.id] ? prev : { ...prev, [scene.id]: true }));
     setExpandedStopId(scene.id);
@@ -170,16 +217,8 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
     scrollToTarget(`#scene-${COPY.waypoints[0].id}`, { duration: 1.4 });
   }, []);
 
-  const handleHeroShotStart = useCallback((triggeredByScroll: boolean) => {
+  const handleHeroShoot = useCallback(() => {
     setHasHeroShot(true);
-    if (triggeredByScroll) {
-      setPathArrowVisible(true);
-    }
-  }, []);
-
-  const handleHeroShotComplete = useCallback(() => {
-    setHasHeroShot(true);
-    setPathArrowVisible(true);
   }, []);
 
   const heroArt = SCENE_ARTWORKS.hero;
@@ -194,16 +233,14 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
       </a>
 
       <Navbar />
-      <MouseTrailCanvas reducedMotion={reducedMotion} />
 
       <div ref={scrollContainerRef} className="relative w-full overflow-x-clip">
-        {/* Path layer sits at z-20: strictly above land+props+fore (z-1..6) and strictly below HUD (z-30) */}
+        {/* Single unified path & arrow overlay (z-20): strictly above scenes (z-1..6) and below HUD (z-30) */}
         <ArrowsPathOverlay
           containerRef={scrollContainerRef}
           reducedMotion={reducedMotion}
-          arrowVisible={pathArrowVisible}
+          hasShot={hasHeroShot}
           onActiveStopsChange={handleLitStopsChange}
-          onActiveSceneChange={handleActiveSceneChange}
         />
 
         <main id="main-content" tabIndex={-1}>
@@ -237,7 +274,7 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
               />
             </SceneBackdrop>
 
-            {/* Bow interaction & arrow origin inside Hero's 16:9 art box near Rama's outstretched bow */}
+            {/* Bow anchor & clean hit area inside Hero's 16:9 art box */}
             <div
               data-scene-hud="hero"
               style={{ '--art-focus-x': String(heroArt.focusXPercent) } as CSSProperties}
@@ -247,8 +284,7 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                 reducedMotion={reducedMotion}
                 hasShot={hasHeroShot}
                 onRamaPoseChange={setRamaPose}
-                onShotStart={handleHeroShotStart}
-                onShotComplete={handleHeroShotComplete}
+                onShoot={handleHeroShoot}
               />
             </div>
 
@@ -323,16 +359,6 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                   data-scene-hud={scene.id}
                   className="pointer-events-none absolute z-30 md:inset-x-0 md:bottom-0 md:aspect-[16/9] max-md:inset-0"
                 >
-                  {/* Scene 1 Ashram arrival golden sparkle around Ring 1 */}
-                  {scene.id === 'ashram' && isArrived && !reducedMotion && (
-                    <div
-                      aria-hidden="true"
-                      data-arrival-sparkle="ashram"
-                      style={{ left: `${wp.xPercent}%`, top: `${wp.yPercent}%` }}
-                      className="v3-sparkle-ring pointer-events-none absolute max-md:!left-[28px] max-md:!top-[calc(12vh+96px)] w-14 h-14 rounded-full border-2 border-[#FFF6E3] bg-[radial-gradient(circle,rgba(244,162,27,0.65)_0%,rgba(244,162,27,0)_72%)]"
-                    />
-                  )}
-
                   <button
                     type="button"
                     data-waypoint-stop={scene.stopNumber}
@@ -352,35 +378,6 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                   >
                     {scene.stopNumber}
                   </button>
-
-                  {/* Scene 4 Dawn Lake: glowing diya button on the lake -> opens standard sign-up */}
-                  {scene.id === 'dawn-lake' && (
-                    <button
-                      type="button"
-                      data-alumni-diya="true"
-                      onClick={() => onOpenAuth?.('register')}
-                      className="pointer-events-auto absolute md:left-[72%] md:top-[76%] md:-translate-x-1/2 md:-translate-y-1/2 max-md:right-4 max-md:bottom-6 min-h-[44px] min-w-[44px] flex flex-col items-center gap-1 rounded-2xl px-2.5 py-1.5 bg-[rgba(255,254,250,0.86)] border border-[rgba(20,56,42,0.28)] shadow-[0_0_24px_rgba(244,162,27,0.48)] hover:bg-[var(--c-brand-green)] hover:border-[var(--c-forest-900)] transition-all duration-200 cursor-pointer"
-                    >
-                      <span className="relative inline-flex items-center justify-center">
-                        <span
-                          aria-hidden="true"
-                          className="absolute -top-2 w-7 h-7 rounded-full blur-[4px] bg-[radial-gradient(circle,rgba(255,246,227,0.95)_0%,rgba(244,162,27,0.85)_45%,rgba(255,122,26,0)_76%)]"
-                        />
-                        <img
-                          src="/landing/art/diya.webp"
-                          alt=""
-                          width={640}
-                          height={401}
-                          loading="lazy"
-                          decoding="async"
-                          className="relative w-10 h-6 object-contain"
-                        />
-                      </span>
-                      <span className="text-[11px] font-semibold tracking-wide text-[var(--c-forest-900)] whitespace-nowrap">
-                        Join as alumni
-                      </span>
-                    </button>
-                  )}
                 </div>
 
                 {/* Desktop: placed in empty sky box %. Mobile <768px: stacked cleanly to the right of left rail */}
@@ -407,32 +404,12 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                       onJoinAlumni={() => onOpenAuth?.('register')}
                     />
                   </div>
-
-                  {/* Mobile <768px: keep Kurukshetra's 3 lit torches (Internships, Jobs, Projects) visible inside screen */}
-                  {scene.id === 'kurukshetra' && (
-                    <div
-                      data-kurukshetra-torches="mobile"
-                      className="md:hidden pointer-events-none absolute left-[60px] right-4 bottom-6 flex items-center justify-between gap-2"
-                    >
-                      {KURUKSHETRA_TORCHES.map((torch) => (
-                        <div
-                          key={torch.label}
-                          className="flex flex-col items-center gap-1 flex-1"
-                        >
-                          <div className="w-2.5 h-4 rounded-full bg-gradient-to-t from-[#FF7A1A] via-[#F4A21B] to-[#FFF6E3] shadow-[0_0_12px_rgba(244,162,27,0.9)]" />
-                          <span className="px-2 py-0.5 rounded-md bg-[rgba(11,16,38,0.88)] border border-[rgba(212,175,55,0.48)] text-[11px] font-semibold text-[#FFF6E3] whitespace-nowrap">
-                            {torch.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </section>
             );
           })}
 
-          {/* Scene 5: The Gate - pins in place, doors open, zooms toward doorway with white-gold flash */}
+          {/* Scene 5: The Gate - pins in place, doors open, zooms into doorway flash, fades in real login page */}
           <section
             ref={gateSectionRef}
             id={`scene-${gateScene.id}`}
@@ -441,6 +418,10 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
             aria-labelledby={`heading-${gateScene.id}`}
             className="relative -mt-[12vh] h-[calc(112vh-38px)] min-h-[calc(112vh-38px)] flex flex-col justify-end overflow-hidden"
           >
+            <h2 id={`heading-${gateScene.id}`} className="sr-only">
+              {gateScene.epicTitle}
+            </h2>
+
             {/* Sky layer blends softly from Dawn Lake over the top 12vh */}
             <SceneBackdrop
               sceneId={gateScene.id}
@@ -454,23 +435,9 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
               reducedMotion={reducedMotion}
             />
 
-            {/* Bounded stage strictly below 12vh blend & 64px fixed navbar down to footer (NO z-index so HUD z-30 stays above path z-20) */}
-            <div className="relative w-full h-full flex flex-col items-center justify-end pt-[calc(12vh+68px)] pointer-events-none overflow-hidden">
-              {/* Compact Gate card in the open golden sky strictly above Ring 5 & gate arch */}
-              <div className="relative z-30 w-full flex flex-col md:items-center max-md:items-start px-4 max-md:pl-[60px] shrink-0 pointer-events-auto">
-                <div
-                  data-gate-card-wrap="true"
-                  className="w-full flex md:justify-center max-md:justify-start transition-transform duration-300"
-                >
-                  <StepCard
-                    scene={gateScene}
-                    expanded={expandedStopId === gateScene.id}
-                    onToggle={handleToggleCard}
-                    onOpenAuth={onOpenAuth}
-                  />
-                </div>
-
-                {/* 28px gold waypoint 5: centered above arch peak on desktop, aligned to x = 28px rail on mobile */}
+            {/* Gate stage: small Stop 5 ring above the arch + full-height palace gate */}
+            <div className="relative w-full h-full flex flex-col items-center justify-end pt-[calc(12vh+72px)] pointer-events-none overflow-visible">
+              <div className="relative z-30 w-full flex flex-col md:items-center max-md:items-start px-4 max-md:pl-[60px] shrink-0">
                 <button
                   type="button"
                   data-waypoint-stop={gateScene.stopNumber}
@@ -478,7 +445,7 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                   aria-label={gateScene.waypointLabel}
                   onClick={() => handleWaypointSelect(gateScene)}
                   className={[
-                    'mt-1.5 mb-2 relative z-30 max-md:-ml-[46px] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border-2 transition-all duration-200 cursor-pointer',
+                    'pointer-events-auto mb-2 relative z-30 max-md:-ml-[46px] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border-2 transition-all duration-200 cursor-pointer',
                     reducedMotion || Boolean(litStops[4])
                       ? 'bg-[var(--c-saffron)] border-[#FFF6E3] text-[var(--c-night-0)] shadow-[0_0_20px_rgba(244,162,27,0.85)]'
                       : 'bg-[rgba(255,254,250,0.9)] border-[var(--c-gold)] text-[var(--c-forest-900)] shadow-[0_0_14px_rgba(212,175,55,0.55)] hover:border-[var(--c-saffron)]',
@@ -488,10 +455,33 @@ export function LandingPage({ onOpenAuth }: LandingPageProps = {}) {
                 </button>
               </div>
 
-              {/* Flex-1 stage on desktop; explicit vw aspect height on mobile so lazy observer & image render cleanly */}
               <div className="relative z-[7] md:flex-1 md:min-h-0 max-md:h-[calc(146vw*1072/1920)] max-md:max-h-[65vh] w-full flex items-end justify-center">
                 <GateArtworkStage config={gateArt} reducedMotion={reducedMotion} />
               </div>
+            </div>
+
+            {/* White-gold doorway flash filling the viewport as the gate zooms in */}
+            <div
+              aria-hidden="true"
+              data-gate-flash="true"
+              style={{
+                opacity: reducedMotion ? 0.92 : 0,
+                background:
+                  'radial-gradient(circle at 50% 58%, #FFFEFA 0%, #FAF7F0 38%, rgba(255,236,179,0.96) 72%, rgba(250,247,240,0.98) 100%)',
+              }}
+              className="pointer-events-none absolute inset-0 z-[35]"
+            />
+
+            {/* Real Login / Sign-up screen fading in inside the doorway light */}
+            <div
+              data-gate-login-overlay="true"
+              style={{
+                opacity: reducedMotion ? 1 : 0,
+                pointerEvents: reducedMotion ? 'auto' : 'none',
+              }}
+              className="absolute inset-x-0 bottom-0 h-screen z-40 flex items-center justify-center pt-20 pb-6 px-4 overflow-y-auto"
+            >
+              {gateAuthSlot ?? <FallbackGateLogin onOpenAuth={onOpenAuth} />}
             </div>
           </section>
         </main>

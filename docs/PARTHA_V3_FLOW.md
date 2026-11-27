@@ -31,16 +31,17 @@
 ## 4. Flow Decisions (Interview Q&A)
 
 ### A. Hero Bow Shot
-- **Who starts the bow shot:** Both — the visitor can pull and release the bow (or tap on phones), and if they do nothing for about 5 seconds, Rama shoots automatically. Once fired, the arrow arcs upward and lands at the start of the golden path at the top-left.
-- **If the visitor scrolls before shooting:** Rama shoots right away as soon as scrolling begins, and the arrow smoothly catches up onto the golden path at the visitor's scroll position.
+- **Single unified arrow & straight sky launch:** One single glowing arrow rests nocked at Rama's bow, fires straight out horizontally into the Hero sky, and then bends smoothly downward along the golden path through Stops 1–5.
+- **Who starts the bow shot:** Both — the visitor can pull and release the bow (or tap on phones), and if they do nothing for about 5 seconds, Rama shoots automatically.
+- **If the visitor scrolls before shooting:** Rama shoots right away as soon as scrolling begins, and the arrow travels out from the bow and follows the golden path with the scroll position.
 
 ### B. Path & Mouse Trail
-- **Laptop/desktop mouse trail:** Yes — a subtle golden trail follows the mouse cursor and fades away shortly after.
-- **Phones & touch screens:** Off on phones — keep touch screens clean and lightweight with no finger trail.
+- **Laptop/desktop mouse trail:** Removed — keep only the clean scroll-drawn golden arrow path with no extra cursor canvas trail.
+- **Phones & touch screens:** Straight vertical left-edge rail at `x = 28px` with rings on it and cards stacked to the right.
 
-### C. Step Cards
-- **Opening on arrival:** Yes — in every stop scene (1 to 4, plus the Gate login card at Stop 5), the card opens automatically when the arrow reaches that stop, with only one card open at a time.
-- **Closing on scroll away:** Close when leaving — the open card collapses back to its compact pill when the visitor scrolls away from that scene.
+### C. Step Cards & Scene Cleanliness
+- **Compact pills on arrival:** Step cards in Stops 1–4 remain compact pills while scrolling and expand only when clicked/tapped or activated via a Waypoint Ring (one open at a time; `Escape` closes).
+- **Clean scenes:** Painted characters and props (`sage`, `chariot`, etc.) stay visible from the start with no extra floating HTML torch/scroll/diya boxes cluttering the paintings.
 
 ### D. Hover Reactions (for a later phase)
 - **Enabled reactions (each plays once per hover/activation):**
@@ -52,8 +53,9 @@
   6. Stars twinkle on hover
 
 ### E. The Gate (Final Scene)
-- **Pinned zoom:** Yes — the Gate pins in place for roughly 1 to 1.5 screens of scrolling while the doors slowly fade/open from closed to open, zooms toward the doorway center with a white-gold flash, and reveals the `"Enter the Gurukul"` login card in the light.
-- **Reduced motion fallback:** No pin or zoom; doors start open and the login card is visible immediately.
+- **No sky card/buttons above the gate:** Only the small `"5"` ring sits above the arch peak (`Log in` / `Create your account` buttons removed from the sky card).
+- **Pinned zoom into flash + real login fade-in:** The Gate pins in place as you scroll: first the doors open (`closed` → `open`), then the view zooms deep into the glowing doorway (`1 → 3.4x`) as a white-gold flash fills the screen, and then the real Login / Sign-up screen (`AuthScreen`) fades in inside the light.
+- **Reduced motion fallback:** No pin or zoom; doors start open and the real Login screen is visible immediately.
 
 ### F. Alumni Sign-Up Button
 - **Button behavior:** Clicking the glowing `"Join as alumni"` diya button in Scene 4 (The Dawn Lake) opens the standard sign-up screen, where the visitor can switch to the Alumni role manually.

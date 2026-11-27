@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { COPY, type StoryWaypointScene } from '../content/copy';
+import { COPY } from '../content/copy';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface ArrowsPathOverlayProps {
   containerRef: RefObject<HTMLDivElement | null>;
   reducedMotion: boolean;
-  arrowVisible?: boolean;
+  hasShot?: boolean;
   onActiveStopsChange: (litStops: boolean[]) => void;
-  onActiveSceneChange?: (sceneId: StoryWaypointScene['id'] | null) => void;
 }
 
 interface LightBandRect {
@@ -25,36 +24,59 @@ interface PathGeometry {
   isMobile: boolean;
   lightBands: LightBandRect[];
   thresholds: number[];
+  launchPt: { x: number; y: number } | null;
   endX: number;
   endY: number;
   endAngle: number;
 }
 
-function buildCurvePath(points: Array<{ x: number; y: number }>, isMobile: boolean): string {
-  if (points.length === 0) return '';
-  if (isMobile && points.length >= 2) {
-    // Curve gently from Rama's bow onto the straight left vertical rail (x = 28), then run straight down
-    const start = points[0];
-    const firstStop = points[1];
-    const dy = firstStop.y - start.y;
-    let d = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${start.x.toFixed(1)} ${(start.y + dy * 0.45).toFixed(1)}, ${firstStop.x.toFixed(1)} ${(firstStop.y - dy * 0.45).toFixed(1)}, ${firstStop.x.toFixed(1)} ${firstStop.y.toFixed(1)}`;
-    for (let i = 2; i < points.length; i += 1) {
-      d += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
+function buildBowAndCurvePath(
+  origin: { x: number; y: number },
+  launchPt: { x: number; y: number },
+  stops: Array<{ x: number; y: number }>,
+  isMobile: boolean,
+): string {
+  if (stops.length === 0) return '';
+
+  // Segment 0: straight bow shot forward into the open sky
+  let d = `M ${origin.x.toFixed(1)} ${origin.y.toFixed(1)} L ${launchPt.x.toFixed(1)} ${launchPt.y.toFixed(1)}`;
+
+  // Segment 1: C1-smooth transition from straight flight bending down toward Stop 1
+  const dx0 = launchPt.x - origin.x;
+  const dy0 = launchPt.y - origin.y;
+  const len0 = Math.hypot(dx0, dy0) || 1;
+  const ux = dx0 / len0;
+  const uy = dy0 / len0;
+  const tangentLead = isMobile ? 56 : Math.min(160, len0 * 0.48);
+
+  const firstStop = stops[0];
+  const dy1 = firstStop.y - launchPt.y;
+  const c1x = launchPt.x + ux * tangentLead;
+  const c1y = launchPt.y + uy * tangentLead;
+  const c2x = firstStop.x;
+  const c2y = firstStop.y - dy1 * 0.45;
+  d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${firstStop.x.toFixed(1)} ${firstStop.y.toFixed(1)}`;
+
+  if (isMobile) {
+    // Straight left-edge vertical rail on phones
+    for (let i = 1; i < stops.length; i += 1) {
+      d += ` L ${stops[i].x.toFixed(1)} ${stops[i].y.toFixed(1)}`;
     }
     return d;
   }
 
-  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-  for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1];
-    const curr = points[i];
+  // Smooth S-curves weaving between Stops 1..5 on desktop
+  for (let i = 1; i < stops.length; i += 1) {
+    const prev = stops[i - 1];
+    const curr = stops[i];
     const dy = curr.y - prev.y;
-    const c1x = prev.x;
-    const c1y = prev.y + dy * 0.45;
-    const c2x = curr.x;
-    const c2y = curr.y - dy * 0.45;
-    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
+    const sc1x = prev.x;
+    const sc1y = prev.y + dy * 0.45;
+    const sc2x = curr.x;
+    const sc2y = curr.y - dy * 0.45;
+    d += ` C ${sc1x.toFixed(1)} ${sc1y.toFixed(1)}, ${sc2x.toFixed(1)} ${sc2y.toFixed(1)}, ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
   }
+
   return d;
 }
 
@@ -64,7 +86,7 @@ function findClosestProgress(
   target: { x: number; y: number },
 ): number {
   if (totalLength <= 0 || typeof pathEl.getPointAtLength !== 'function') return 1;
-  const samples = 140;
+  const samples = 180;
   let bestDist = Infinity;
   let bestT = 0;
 
@@ -85,9 +107,8 @@ function findClosestProgress(
 export function ArrowsPathOverlay({
   containerRef,
   reducedMotion,
-  arrowVisible = true,
+  hasShot = false,
   onActiveStopsChange,
-  onActiveSceneChange,
 }: ArrowsPathOverlayProps) {
   const pathRef = useRef<SVGPathElement | null>(null);
   const brownEdgeRef = useRef<SVGPathElement | null>(null);
@@ -101,7 +122,8 @@ export function ArrowsPathOverlay({
     height: 4000,
     isMobile: false,
     lightBands: [],
-    thresholds: [0.18, 0.36, 0.56, 0.76, 0.96],
+    thresholds: [0.24, 0.42, 0.6, 0.78, 0.96],
+    launchPt: null,
     endX: 0,
     endY: 0,
     endAngle: 90,
@@ -110,25 +132,29 @@ export function ArrowsPathOverlay({
   const metricsRef = useRef<{
     totalLength: number;
     thresholds: number[];
+    launchProgress: number;
     endX: number;
     endY: number;
     endAngle: number;
     reducedMotion: boolean;
   }>({
     totalLength: 0,
-    thresholds: [0.18, 0.36, 0.56, 0.76, 0.96],
+    thresholds: [0.24, 0.42, 0.6, 0.78, 0.96],
+    launchProgress: 0.08,
     endX: 0,
     endY: 0,
     endAngle: 90,
     reducedMotion,
   });
 
+  const shotProgressRef = useRef<number>(reducedMotion || hasShot ? 0.08 : 0);
+  const scrollProgressRef = useRef<number>(0);
+  const hasShotRef = useRef<boolean>(reducedMotion || hasShot);
+  hasShotRef.current = reducedMotion || hasShot;
+
   const lastLitMaskRef = useRef<string>('');
-  const lastActiveSceneRef = useRef<StoryWaypointScene['id'] | null>(null);
   const onActiveStopsChangeRef = useRef(onActiveStopsChange);
   onActiveStopsChangeRef.current = onActiveStopsChange;
-  const onActiveSceneChangeRef = useRef(onActiveSceneChange);
-  onActiveSceneChangeRef.current = onActiveSceneChange;
 
   const updateLitStops = useCallback((progress: number, thresholds: number[], isReduced: boolean) => {
     const next = isReduced
@@ -139,26 +165,55 @@ export function ArrowsPathOverlay({
       lastLitMaskRef.current = mask;
       onActiveStopsChangeRef.current(next);
     }
+  }, []);
 
-    if (isReduced) return;
+  const syncVisuals = useCallback(() => {
+    const pathEl = pathRef.current;
+    const brownEl = brownEdgeRef.current;
+    const tipEl = tipRef.current;
+    const { totalLength, thresholds, endX, endY, endAngle, reducedMotion: isReduced } =
+      metricsRef.current;
 
-    let activeScene: StoryWaypointScene['id'] | null = null;
-    for (let i = 0; i < COPY.waypoints.length; i += 1) {
-      const t = thresholds[i] ?? 1;
-      const enter = Math.max(0.02, t - 0.02);
-      const isLast = i === COPY.waypoints.length - 1;
-      const leave = isLast ? 1.05 : Math.min((thresholds[i + 1] ?? 1) - 0.04, t + 0.085);
-      if (progress >= enter && progress <= leave) {
-        activeScene = COPY.waypoints[i].id;
-        break;
+    if (!pathEl) return;
+
+    const applyDash = (offset: number) => {
+      pathEl.style.strokeDasharray = `${totalLength}`;
+      pathEl.style.strokeDashoffset = `${offset}`;
+      if (brownEl) {
+        brownEl.style.strokeDasharray = `${totalLength}`;
+        brownEl.style.strokeDashoffset = `${offset}`;
+      }
+    };
+
+    if (isReduced) {
+      applyDash(0);
+      if (tipEl) {
+        gsap.set(tipEl, { x: endX, y: endY, rotation: endAngle, opacity: 1 });
+      }
+      updateLitStops(1, thresholds, true);
+      return;
+    }
+
+    const effective = Math.min(1, Math.max(shotProgressRef.current, scrollProgressRef.current));
+    const drawn = totalLength * effective;
+    applyDash(Math.max(0, totalLength - drawn));
+
+    if (tipEl && totalLength > 0 && typeof pathEl.getPointAtLength === 'function') {
+      if (drawn <= 2) {
+        const pt = pathEl.getPointAtLength(0);
+        const nextPt = pathEl.getPointAtLength(Math.min(totalLength, 4));
+        const angle = (Math.atan2(nextPt.y - pt.y, nextPt.x - pt.x) * 180) / Math.PI;
+        gsap.set(tipEl, { x: pt.x, y: pt.y, rotation: angle, opacity: 1 });
+      } else {
+        const pt = pathEl.getPointAtLength(drawn);
+        const prevPt = pathEl.getPointAtLength(Math.max(0, drawn - 3));
+        const angle = (Math.atan2(pt.y - prevPt.y, pt.x - prevPt.x) * 180) / Math.PI;
+        gsap.set(tipEl, { x: pt.x, y: pt.y, rotation: angle, opacity: 1 });
       }
     }
 
-    if (activeScene !== lastActiveSceneRef.current) {
-      lastActiveSceneRef.current = activeScene;
-      onActiveSceneChangeRef.current?.(activeScene);
-    }
-  }, []);
+    updateLitStops(effective, thresholds, false);
+  }, [updateLitStops]);
 
   const recomputePath = useCallback(() => {
     const container = containerRef.current;
@@ -170,6 +225,9 @@ export function ArrowsPathOverlay({
     if (!originEl || stopEls.length === 0) return;
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const width = Math.max(1, Math.round(cRect.width));
+    const height = Math.max(container.scrollHeight, Math.round(cRect.height));
+
     const toPoint = (el: HTMLElement) => {
       const r = el.getBoundingClientRect();
       return {
@@ -178,12 +236,22 @@ export function ArrowsPathOverlay({
       };
     };
 
-    const allPoints = [toPoint(originEl), ...stopEls.map(toPoint)];
-    const d = buildCurvePath(allPoints, isMobile);
-    const width = Math.max(1, Math.round(cRect.width));
-    const height = Math.max(container.scrollHeight, Math.round(cRect.height));
+    const originPt = toPoint(originEl);
+    const stopPts = stopEls.map(toPoint);
 
-    // Record light-section vertical bands so dark-brown 1.5px casing renders ONLY in light scenes
+    // Launch straight out in the air from Rama's bow before curving downward
+    const launchPt = isMobile
+      ? {
+          x: Math.min(width - 42, originPt.x + Math.max(90, width * 0.32)),
+          y: originPt.y - 10,
+        }
+      : {
+          x: Math.min(width - 96, originPt.x + Math.max(220, width * 0.27)),
+          y: originPt.y - Math.round(Math.min(24, width * 0.015)),
+        };
+
+    const d = buildBowAndCurvePath(originPt, launchPt, stopPts, isMobile);
+
     const lightSections = Array.from(
       container.querySelectorAll<HTMLElement>('[data-scene][data-section-mode="light"]'),
     );
@@ -195,7 +263,7 @@ export function ArrowsPathOverlay({
       };
     });
 
-    const lastPt = allPoints[allPoints.length - 1];
+    const lastPt = stopPts[stopPts.length - 1];
     setGeometry({
       d,
       width,
@@ -203,16 +271,16 @@ export function ArrowsPathOverlay({
       isMobile,
       lightBands,
       thresholds: metricsRef.current.thresholds,
+      launchPt,
       endX: lastPt.x,
       endY: lastPt.y,
       endAngle: 90,
     });
   }, [containerRef]);
 
-  // Measure path length & waypoint progress thresholds whenever path `d` updates
+  // Measure path length, launchPt progress, and waypoint thresholds whenever `d` updates
   useEffect(() => {
     const pathEl = pathRef.current;
-    const brownEl = brownEdgeRef.current;
     const container = containerRef.current;
     if (!pathEl || !container || !geometry.d) return;
 
@@ -224,6 +292,11 @@ export function ArrowsPathOverlay({
       totalLength = pathEl.getTotalLength();
     }
 
+    const launchProgress =
+      totalLength > 0 && geometry.launchPt
+        ? Math.max(0.03, findClosestProgress(pathEl, totalLength, geometry.launchPt))
+        : 0.08;
+
     const thresholds =
       totalLength > 0 && stopEls.length > 0
         ? stopEls.map((el) => {
@@ -233,7 +306,7 @@ export function ArrowsPathOverlay({
               y: r.top + r.height / 2 - cRect.top,
             });
           })
-        : [0.18, 0.36, 0.56, 0.76, 0.96];
+        : [0.24, 0.42, 0.6, 0.78, 0.96];
 
     let endX = geometry.endX;
     let endY = geometry.endY;
@@ -249,50 +322,64 @@ export function ArrowsPathOverlay({
     metricsRef.current = {
       totalLength,
       thresholds,
+      launchProgress,
       endX,
       endY,
       endAngle,
       reducedMotion,
     };
 
-    const applyDash = (offset: number) => {
-      pathEl.style.strokeDasharray = `${totalLength}`;
-      pathEl.style.strokeDashoffset = `${offset}`;
-      if (brownEl) {
-        brownEl.style.strokeDasharray = `${totalLength}`;
-        brownEl.style.strokeDashoffset = `${offset}`;
-      }
-    };
-
-    if (reducedMotion) {
-      applyDash(0);
-      if (tipRef.current) {
-        gsap.set(tipRef.current, { x: endX, y: endY, rotation: endAngle, opacity: 1 });
-      }
-      updateLitStops(1, thresholds, true);
-    } else {
-      const st = ScrollTrigger.getById('arrows-path-scroll');
-      const progress = st ? st.progress : 0;
-      const drawn = totalLength * progress;
-      applyDash(Math.max(0, totalLength - drawn));
-
-      if (tipRef.current && totalLength > 0 && typeof pathEl.getPointAtLength === 'function') {
-        const pt = pathEl.getPointAtLength(drawn);
-        const prevPt = pathEl.getPointAtLength(Math.max(0, drawn - 3));
-        const angle =
-          drawn > 2
-            ? (Math.atan2(pt.y - prevPt.y, pt.x - prevPt.x) * 180) / Math.PI
-            : 90;
-        gsap.set(tipRef.current, { x: pt.x, y: pt.y, rotation: angle, opacity: 1 });
-      }
-      updateLitStops(progress, thresholds, false);
+    if (hasShotRef.current && shotProgressRef.current < launchProgress) {
+      shotProgressRef.current = launchProgress;
     }
 
+    const st = ScrollTrigger.getById('arrows-path-scroll');
+    scrollProgressRef.current = st ? st.progress : 0;
+
+    syncVisuals();
     ScrollTrigger.refresh();
     container.dataset.scrolltriggerCount = String(ScrollTrigger.getAll().length);
-  }, [containerRef, geometry.d, geometry.endX, geometry.endY, reducedMotion, updateLitStops]);
+  }, [
+    containerRef,
+    geometry.d,
+    geometry.endX,
+    geometry.endY,
+    geometry.launchPt,
+    reducedMotion,
+    syncVisuals,
+  ]);
 
-  // Persistent single ScrollTrigger tied to container scroll; debounced resize rebuilds SVG path cleanly without extra triggers
+  // Animate the single arrow straight out from Rama's bow into the sky when fired
+  useEffect(() => {
+    if (reducedMotion || !hasShot) return;
+
+    const target = metricsRef.current.launchProgress || 0.08;
+    if (shotProgressRef.current >= target) {
+      syncVisuals();
+      return;
+    }
+
+    const proxy = { p: shotProgressRef.current };
+    const tween = gsap.to(proxy, {
+      p: target,
+      duration: 0.55,
+      ease: 'power2.out',
+      onUpdate: () => {
+        shotProgressRef.current = proxy.p;
+        syncVisuals();
+      },
+      onComplete: () => {
+        shotProgressRef.current = target;
+        syncVisuals();
+      },
+    });
+
+    return () => {
+      tween.kill();
+    };
+  }, [hasShot, reducedMotion, syncVisuals]);
+
+  // Persistent single ScrollTrigger tied to container scroll
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -310,11 +397,20 @@ export function ArrowsPathOverlay({
     window.addEventListener('resize', onResize, { passive: true });
     window.addEventListener('orientationchange', onResize);
 
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        onResize();
+      });
+      ro.observe(container);
+    }
+
     if (reducedMotion) {
       return () => {
         window.clearTimeout(resizeTimer);
         window.removeEventListener('resize', onResize);
         window.removeEventListener('orientationchange', onResize);
+        ro?.disconnect();
       };
     }
 
@@ -326,34 +422,11 @@ export function ArrowsPathOverlay({
         start: 'top top',
         endTrigger: stop5El ?? container,
         end: stop5El ? 'center 38%' : 'bottom bottom',
-        scrub: 0.6,
+        scrub: 0.5,
         invalidateOnRefresh: true,
         onUpdate: (self) => {
-          const pathEl = pathRef.current;
-          const brownEl = brownEdgeRef.current;
-          const tipEl = tipRef.current;
-          const { totalLength, thresholds } = metricsRef.current;
-          if (!pathEl || totalLength <= 0) return;
-
-          const p = Math.min(Math.max(self.progress, 0), 1);
-          const dist = totalLength * p;
-          const dashOffset = `${Math.max(0, totalLength - dist)}`;
-          pathEl.style.strokeDashoffset = dashOffset;
-          if (brownEl) {
-            brownEl.style.strokeDashoffset = dashOffset;
-          }
-
-          if (tipEl && typeof pathEl.getPointAtLength === 'function') {
-            const pt = pathEl.getPointAtLength(dist);
-            const prevPt = pathEl.getPointAtLength(Math.max(0, dist - 3));
-            const angle =
-              dist > 2
-                ? (Math.atan2(pt.y - prevPt.y, pt.x - prevPt.x) * 180) / Math.PI
-                : 90;
-            gsap.set(tipEl, { x: pt.x, y: pt.y, rotation: angle, opacity: 1 });
-          }
-
-          updateLitStops(p, thresholds, false);
+          scrollProgressRef.current = Math.min(Math.max(self.progress, 0), 1);
+          syncVisuals();
         },
       });
     }, container);
@@ -362,9 +435,10 @@ export function ArrowsPathOverlay({
       window.clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
+      ro?.disconnect();
       ctx.revert();
     };
-  }, [containerRef, recomputePath, reducedMotion, updateLitStops]);
+  }, [containerRef, recomputePath, reducedMotion, syncVisuals]);
 
   const goldWidth = geometry.isMobile ? 4 : 5;
   const edgeWidth = goldWidth + 3; // 1.5px dark-brown casing on each side of gold path in light scenes
@@ -380,7 +454,9 @@ export function ArrowsPathOverlay({
         width={geometry.width}
         height={geometry.height}
         viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-        className="w-full h-full block"
+        preserveAspectRatio="xMinYMin meet"
+        style={{ width: `${geometry.width}px`, height: `${geometry.height}px` }}
+        className="block"
       >
         <defs>
           <filter id={glowId} x="-15%" y="-15%" width="130%" height="130%">
@@ -438,21 +514,17 @@ export function ArrowsPathOverlay({
         )}
       </svg>
 
-      {/* Leading ~56px glowing arrowhead and shaft riding along path tangent */}
+      {/* Single unified glowing golden arrow riding the path */}
       <div
         ref={tipRef}
         data-arrow-tip="true"
-        className={[
-          'pointer-events-none absolute left-0 top-0 -ml-[56px] -mt-[14px] w-[56px] h-[28px] transition-opacity duration-200',
-          arrowVisible || reducedMotion ? 'opacity-100' : 'opacity-0',
-        ].join(' ')}
+        className="pointer-events-none absolute left-0 top-0 -ml-[56px] -mt-[14px] w-[56px] h-[28px]"
         style={{
           transformOrigin: '100% 50%',
           filter: 'drop-shadow(0 0 8px rgba(244, 162, 27, 0.78))',
         }}
       >
         <svg viewBox="0 0 56 28" className="w-full h-full overflow-visible" fill="none">
-          {/* Dark outline for clarity against sky & light hills */}
           <path
             d="M4 14H41"
             stroke="#3B1D0A"
@@ -460,14 +532,12 @@ export function ArrowsPathOverlay({
             strokeLinecap="round"
             strokeOpacity="0.6"
           />
-          {/* Glowing gold shaft */}
           <path
             d="M4 14H41"
             stroke="#F4A21B"
             strokeWidth="3.5"
             strokeLinecap="round"
           />
-          {/* Subtle tail fletching */}
           <path
             d="M3 10L10 14L3 18"
             stroke="#F4A21B"
@@ -475,7 +545,6 @@ export function ArrowsPathOverlay({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {/* Pointed golden arrowhead */}
           <path
             d="M35 5.5L55 14L35 22.5L40.5 14Z"
             fill="#F4A21B"

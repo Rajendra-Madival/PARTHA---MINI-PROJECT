@@ -752,7 +752,20 @@ export default function App() {
 
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#FAF7F0]" />}>
-        <LandingPage onOpenAuth={(mode) => setAuthGateMode(mode)} />
+        <LandingPage
+          onOpenAuth={(mode) => setAuthGateMode(mode)}
+          gateAuthSlot={
+            <AuthScreen
+              embedded
+              dbHealth={dbHealth}
+              bootstrapStatus={bootstrapStatus}
+              checkingConnection={checkingConnection}
+              onRetryHealth={checkHealthAndBootstrap}
+              onAuthenticated={handleAuthenticated}
+              initialMode="login"
+            />
+          }
+        />
       </Suspense>
     );
   }
