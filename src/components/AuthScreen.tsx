@@ -28,6 +28,7 @@ interface AuthScreenProps {
   onRetryHealth: () => Promise<void>;
   onAuthenticated: (session: AuthSession, notice?: string) => void;
   embedded?: boolean;
+  initialMode?: 'login' | 'register';
 }
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
@@ -57,10 +58,11 @@ export function AuthScreen({
   onRetryHealth,
   onAuthenticated,
   embedded = false,
+  initialMode = 'login',
 }: AuthScreenProps) {
   const prefersReducedMotion = useReducedMotion();
   const [role, setRole] = useState<UserRole>('student');
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,5 +1,5 @@
 import { Bell, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminDashboardView } from './components/AdminDashboardView';
 import { AlumniDashboardView } from './components/AlumniDashboardView';
 import { AuthScreen } from './components/AuthScreen';
@@ -9,7 +9,10 @@ import { MentorshipModal } from './components/MentorshipModal';
 import { Navbar, type ActiveTab } from './components/Navbar';
 import { OpportunitiesFeedView } from './components/OpportunitiesFeedView';
 import { ParthaLandingPage } from './components/ParthaLandingPage';
-import { LandingPage } from './landing/LandingPage';
+
+const LandingPage = lazy(() =>
+  import('./landing/LandingPage').then((mod) => ({ default: mod.LandingPage })),
+);
 import { PostModal } from './components/PostModal';
 import { ProfileDetailsView } from './components/ProfileDetailsView';
 import { SeniorIntakeFormPanel } from './components/SeniorIntakeFormPanel';
@@ -87,6 +90,7 @@ export default function App() {
   const [checkingConnection, setCheckingConnection] = useState(true);
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authGateMode, setAuthGateMode] = useState<'login' | 'register' | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('discover');
   const [studentProfile, setStudentProfile] =
     useState<StudentTargetProfile | null>(null);
@@ -718,15 +722,39 @@ export default function App() {
   }, [opportunitiesData.domains, guidesData.domains]);
 
   if (!user) {
-    // Keep ParthaLandingPage and AuthScreen intact in the repo while mounting src/landing/ at root for logged-out users (Phase 0)
     void ParthaLandingPage;
-    void AuthScreen;
-    void dbHealth;
-    void bootstrapStatus;
-    void checkingConnection;
-    void checkHealthAndBootstrap;
-    void handleAuthenticated;
-    return <LandingPage />;
+    if (authGateMode !== null) {
+      return (
+        <div className="min-h-screen bg-[#FAF7F0] text-[#18221D]">
+          <div className="mx-auto max-w-5xl px-4 pt-4">
+            <button
+              type="button"
+              onClick={() => setAuthGateMode(null)}
+              className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium text-[#14382A] hover:bg-[#ECFDF5] cursor-pointer"
+            >
+              &larr; Back to Partha
+            </button>
+          </div>
+          <AuthScreen
+            dbHealth={dbHealth}
+            bootstrapStatus={bootstrapStatus}
+            checkingConnection={checkingConnection}
+            onRetryHealth={checkHealthAndBootstrap}
+            onAuthenticated={(session, notice) => {
+              setAuthGateMode(null);
+              handleAuthenticated(session, notice);
+            }}
+            initialMode={authGateMode}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#FAF7F0]" />}>
+        <LandingPage onOpenAuth={(mode) => setAuthGateMode(mode)} />
+      </Suspense>
+    );
   }
 
   const selectedAlumni =
