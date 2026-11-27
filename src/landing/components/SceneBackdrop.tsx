@@ -52,6 +52,7 @@ export function SceneBackdrop({
 }: SceneBackdropProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const skyWrapRef = useRef<HTMLDivElement | null>(null);
+  const starsRef = useRef<HTMLDivElement | null>(null);
   const landWrapRef = useRef<HTMLDivElement | null>(null);
   const foreWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -89,11 +90,13 @@ export function SceneBackdrop({
     if (!root || !layers || !shouldLoad) return;
 
     const skyEl = skyWrapRef.current;
+    const starsEl = starsRef.current;
     const landEl = landWrapRef.current;
     const foreEl = foreWrapRef.current;
 
     if (reducedMotion) {
       if (skyEl) gsap.set(skyEl, { yPercent: sunSink ? 18 : 0 });
+      if (starsEl) gsap.set(starsEl, { opacity: 0.55 });
       if (landEl) gsap.set(landEl, { yPercent: 0 });
       if (foreEl) gsap.set(foreEl, { yPercent: 0 });
       return;
@@ -118,6 +121,22 @@ export function SceneBackdrop({
               },
             },
           );
+          if (starsEl) {
+            gsap.fromTo(
+              starsEl,
+              { opacity: 0.14 },
+              {
+                opacity: 0.85,
+                ease: 'none',
+                scrollTrigger: {
+                  trigger: sectionEl,
+                  start: 'top 90%',
+                  end: 'bottom 20%',
+                  scrub: 0.6,
+                },
+              },
+            );
+          }
         } else {
           const halfSky = Math.min(2, (parallax.sky * 100) / 2);
           if (halfSky > 0) {
@@ -252,6 +271,26 @@ export function SceneBackdrop({
               className="w-full h-full object-cover object-center"
             />
           </div>
+        )}
+
+        {/* Scene 2 dusk stars brightening subtly as the sun sinks behind the sea */}
+        {sunSink && (
+          <div
+            ref={starsRef}
+            data-bridge-stars="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-[48%] z-[2] opacity-20"
+            style={{
+              backgroundImage: [
+                'radial-gradient(1.5px 1.5px at 16% 24%, rgba(255,246,227,0.95) 0%, transparent 100%)',
+                'radial-gradient(1.5px 1.5px at 29% 16%, rgba(255,246,227,0.85) 0%, transparent 100%)',
+                'radial-gradient(2px 2px at 41% 31%, rgba(255,209,102,0.9) 0%, transparent 100%)',
+                'radial-gradient(1.5px 1.5px at 58% 19%, rgba(255,246,227,0.9) 0%, transparent 100%)',
+                'radial-gradient(2px 2px at 73% 28%, rgba(255,209,102,0.85) 0%, transparent 100%)',
+                'radial-gradient(1.5px 1.5px at 84% 18%, rgba(255,246,227,0.9) 0%, transparent 100%)',
+                'radial-gradient(1px 1px at 66% 37%, rgba(255,246,227,0.75) 0%, transparent 100%)',
+              ].join(','),
+            }}
+          />
         )}
 
         {/* Scene 3 warm gold-orange glow band above the 60% horizon, behind land */}

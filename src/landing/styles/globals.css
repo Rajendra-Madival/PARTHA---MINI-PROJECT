@@ -221,3 +221,103 @@
     );
   }
 }
+
+/* Scene choreography animations (Phase V3-3) */
+@keyframes v3-chariot-sway {
+  0%,
+  100% {
+    transform: translate(-50%, -100%) translate3d(0, 0, 0) rotate(-0.45deg);
+  }
+  50% {
+    transform: translate(-50%, -100%) translate3d(0, -5px, 0) rotate(0.55deg);
+  }
+}
+
+@keyframes v3-diya-flicker {
+  0%,
+  100% {
+    transform: translate(-50%, -100%) scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: translate(-50%, -100%) scale(1.09, 1.14);
+    opacity: 1;
+  }
+}
+
+@keyframes v3-sparkle-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 0.95;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.85);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.25);
+    opacity: 0;
+  }
+}
+
+@keyframes v3-conch-pulse {
+  0% {
+    transform: translate(-50%, -100%) scale(1);
+    filter: drop-shadow(0 0 0 rgba(244, 162, 27, 0));
+  }
+  45% {
+    transform: translate(-50%, -100%) scale(1.09);
+    filter: drop-shadow(0 0 24px rgba(244, 162, 27, 0.95));
+  }
+  100% {
+    transform: translate(-50%, -100%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(244, 162, 27, 0.45));
+  }
+}
+
+@keyframes v3-scroll-float {
+  0% {
+    transform: translate3d(0, 14px, 0) scale(0.88);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.92;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(0, -48px, 0) scale(1);
+    opacity: 0;
+  }
+}
+
+.partha-landing-v3 .v3-chariot-sway {
+  animation: v3-chariot-sway 5.2s ease-in-out infinite;
+}
+
+.partha-landing-v3 .v3-diya-flame {
+  animation: v3-diya-flicker 2.1s ease-in-out infinite;
+}
+
+.partha-landing-v3 .v3-sparkle-ring {
+  animation: v3-sparkle-burst 0.85s ease-out forwards;
+}
+
+.partha-landing-v3 .v3-conch-pulse {
+  animation: v3-conch-pulse 1.15s ease-in-out 1;
+}
+
+.partha-landing-v3 .v3-scroll-float {
+  animation: v3-scroll-float 4.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partha-landing-v3 .v3-chariot-sway,
+  .partha-landing-v3 .v3-diya-flame,
+  .partha-landing-v3 .v3-sparkle-ring,
+  .partha-landing-v3 .v3-conch-pulse,
+  .partha-landing-v3 .v3-scroll-float {
+    animation: none !important;
+  }
+}

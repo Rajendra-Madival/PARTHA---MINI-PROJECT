@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { COPY } from '../content/copy';
+import { COPY, type StoryWaypointScene } from '../content/copy';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface ArrowsPathOverlayProps {
   containerRef: RefObject<HTMLDivElement | null>;
   reducedMotion: boolean;
+  arrowVisible?: boolean;
   onActiveStopsChange: (litStops: boolean[]) => void;
+  onActiveSceneChange?: (sceneId: StoryWaypointScene['id'] | null) => void;
 }
 
 interface LightBandRect {
@@ -28,8 +30,20 @@ interface PathGeometry {
   endAngle: number;
 }
 
-function buildCurvePath(points: Array<{ x: number; y: number }>): string {
+function buildCurvePath(points: Array<{ x: number; y: number }>, isMobile: boolean): string {
   if (points.length === 0) return '';
+  if (isMobile && points.length >= 2) {
+    // Curve gently from Rama's bow onto the straight left vertical rail (x = 28), then run straight down
+    const start = points[0];
+    const firstStop = points[1];
+    const dy = firstStop.y - start.y;
+    let d = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${start.x.toFixed(1)} ${(start.y + dy * 0.45).toFixed(1)}, ${firstStop.x.toFixed(1)} ${(firstStop.y - dy * 0.45).toFixed(1)}, ${firstStop.x.toFixed(1)} ${firstStop.y.toFixed(1)}`;
+    for (let i = 2; i < points.length; i += 1) {
+      d += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
+    }
+    return d;
+  }
+
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
   for (let i = 1; i < points.length; i += 1) {
     const prev = points[i - 1];
@@ -71,7 +85,9 @@ function findClosestProgress(
 export function ArrowsPathOverlay({
   containerRef,
   reducedMotion,
+  arrowVisible = true,
   onActiveStopsChange,
+  onActiveSceneChange,
 }: ArrowsPathOverlayProps) {
   const pathRef = useRef<SVGPathElement | null>(null);
   const brownEdgeRef = useRef<SVGPathElement | null>(null);
@@ -108,8 +124,11 @@ export function ArrowsPathOverlay({
   });
 
   const lastLitMaskRef = useRef<string>('');
+  const lastActiveSceneRef = useRef<StoryWaypointScene['id'] | null>(null);
   const onActiveStopsChangeRef = useRef(onActiveStopsChange);
   onActiveStopsChangeRef.current = onActiveStopsChange;
+  const onActiveSceneChangeRef = useRef(onActiveSceneChange);
+  onActiveSceneChangeRef.current = onActiveSceneChange;
 
   const updateLitStops = useCallback((progress: number, thresholds: number[], isReduced: boolean) => {
     const next = isReduced
@@ -119,6 +138,25 @@ export function ArrowsPathOverlay({
     if (mask !== lastLitMaskRef.current) {
       lastLitMaskRef.current = mask;
       onActiveStopsChangeRef.current(next);
+    }
+
+    if (isReduced) return;
+
+    let activeScene: StoryWaypointScene['id'] | null = null;
+    for (let i = 0; i < COPY.waypoints.length; i += 1) {
+      const t = thresholds[i] ?? 1;
+      const enter = Math.max(0.02, t - 0.02);
+      const isLast = i === COPY.waypoints.length - 1;
+      const leave = isLast ? 1.05 : Math.min((thresholds[i + 1] ?? 1) - 0.04, t + 0.085);
+      if (progress >= enter && progress <= leave) {
+        activeScene = COPY.waypoints[i].id;
+        break;
+      }
+    }
+
+    if (activeScene !== lastActiveSceneRef.current) {
+      lastActiveSceneRef.current = activeScene;
+      onActiveSceneChangeRef.current?.(activeScene);
     }
   }, []);
 
@@ -141,7 +179,7 @@ export function ArrowsPathOverlay({
     };
 
     const allPoints = [toPoint(originEl), ...stopEls.map(toPoint)];
-    const d = buildCurvePath(allPoints);
+    const d = buildCurvePath(allPoints, isMobile);
     const width = Math.max(1, Math.round(cRect.width));
     const height = Math.max(container.scrollHeight, Math.round(cRect.height));
 
@@ -404,7 +442,10 @@ export function ArrowsPathOverlay({
       <div
         ref={tipRef}
         data-arrow-tip="true"
-        className="pointer-events-none absolute left-0 top-0 -ml-[56px] -mt-[14px] w-[56px] h-[28px]"
+        className={[
+          'pointer-events-none absolute left-0 top-0 -ml-[56px] -mt-[14px] w-[56px] h-[28px] transition-opacity duration-200',
+          arrowVisible || reducedMotion ? 'opacity-100' : 'opacity-0',
+        ].join(' ')}
         style={{
           transformOrigin: '100% 50%',
           filter: 'drop-shadow(0 0 8px rgba(244, 162, 27, 0.78))',
