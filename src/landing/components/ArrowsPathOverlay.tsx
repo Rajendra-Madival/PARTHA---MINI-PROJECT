@@ -11,33 +11,34 @@ interface ArrowsPathOverlayProps {
   onActiveStopsChange: (litStops: boolean[]) => void;
 }
 
+interface LightBandRect {
+  y: number;
+  height: number;
+}
+
 interface PathGeometry {
   d: string;
   width: number;
   height: number;
+  isMobile: boolean;
+  lightBands: LightBandRect[];
   thresholds: number[];
   endX: number;
   endY: number;
   endAngle: number;
 }
 
-function buildCurvePath(points: Array<{ x: number; y: number }>, isMobile: boolean): string {
+function buildCurvePath(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return '';
-  if (isMobile) {
-    const railX = points[0].x;
-    const lastY = points[points.length - 1].y;
-    return `M ${railX.toFixed(1)} ${points[0].y.toFixed(1)} L ${railX.toFixed(1)} ${lastY.toFixed(1)}`;
-  }
-
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
   for (let i = 1; i < points.length; i += 1) {
     const prev = points[i - 1];
     const curr = points[i];
     const dy = curr.y - prev.y;
     const c1x = prev.x;
-    const c1y = prev.y + dy * 0.48;
+    const c1y = prev.y + dy * 0.45;
     const c2x = curr.x;
-    const c2y = curr.y - dy * 0.48;
+    const c2y = curr.y - dy * 0.45;
     d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
   }
   return d;
@@ -73,13 +74,17 @@ export function ArrowsPathOverlay({
   onActiveStopsChange,
 }: ArrowsPathOverlayProps) {
   const pathRef = useRef<SVGPathElement | null>(null);
+  const brownEdgeRef = useRef<SVGPathElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
-  const filterId = useId();
+  const glowId = useId();
+  const lightClipId = useId();
 
   const [geometry, setGeometry] = useState<PathGeometry>({
     d: '',
     width: 1440,
     height: 4000,
+    isMobile: false,
+    lightBands: [],
     thresholds: [0.18, 0.36, 0.56, 0.76, 0.96],
     endX: 0,
     endY: 0,
@@ -135,23 +140,33 @@ export function ArrowsPathOverlay({
       };
     };
 
-    const stopPoints = stopEls.map(toPoint);
-    const originPoint = isMobile
-      ? { x: stopPoints[0].x, y: toPoint(originEl).y }
-      : toPoint(originEl);
-
-    const allPoints = [originPoint, ...stopPoints];
-    const d = buildCurvePath(allPoints, isMobile);
-    const width = Math.max(container.scrollWidth, Math.round(cRect.width));
+    const allPoints = [toPoint(originEl), ...stopEls.map(toPoint)];
+    const d = buildCurvePath(allPoints);
+    const width = Math.max(1, Math.round(cRect.width));
     const height = Math.max(container.scrollHeight, Math.round(cRect.height));
 
+    // Record light-section vertical bands so dark-brown 1.5px casing renders ONLY in light scenes
+    const lightSections = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-scene][data-section-mode="light"]'),
+    );
+    const lightBands = lightSections.map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        y: Math.max(0, r.top - cRect.top),
+        height: r.height,
+      };
+    });
+
+    const lastPt = allPoints[allPoints.length - 1];
     setGeometry({
       d,
       width,
       height,
+      isMobile,
+      lightBands,
       thresholds: metricsRef.current.thresholds,
-      endX: stopPoints[stopPoints.length - 1].x,
-      endY: stopPoints[stopPoints.length - 1].y,
+      endX: lastPt.x,
+      endY: lastPt.y,
       endAngle: 90,
     });
   }, [containerRef]);
@@ -159,6 +174,7 @@ export function ArrowsPathOverlay({
   // Measure path length & waypoint progress thresholds whenever path `d` updates
   useEffect(() => {
     const pathEl = pathRef.current;
+    const brownEl = brownEdgeRef.current;
     const container = containerRef.current;
     if (!pathEl || !container || !geometry.d) return;
 
@@ -201,19 +217,26 @@ export function ArrowsPathOverlay({
       reducedMotion,
     };
 
-    if (reducedMotion) {
+    const applyDash = (offset: number) => {
       pathEl.style.strokeDasharray = `${totalLength}`;
-      pathEl.style.strokeDashoffset = '0';
+      pathEl.style.strokeDashoffset = `${offset}`;
+      if (brownEl) {
+        brownEl.style.strokeDasharray = `${totalLength}`;
+        brownEl.style.strokeDashoffset = `${offset}`;
+      }
+    };
+
+    if (reducedMotion) {
+      applyDash(0);
       if (tipRef.current) {
         gsap.set(tipRef.current, { x: endX, y: endY, rotation: endAngle, opacity: 1 });
       }
       updateLitStops(1, thresholds, true);
     } else {
-      pathEl.style.strokeDasharray = `${totalLength}`;
       const st = ScrollTrigger.getById('arrows-path-scroll');
       const progress = st ? st.progress : 0;
       const drawn = totalLength * progress;
-      pathEl.style.strokeDashoffset = `${Math.max(0, totalLength - drawn)}`;
+      applyDash(Math.max(0, totalLength - drawn));
 
       if (tipRef.current && totalLength > 0 && typeof pathEl.getPointAtLength === 'function') {
         const pt = pathEl.getPointAtLength(drawn);
@@ -231,7 +254,7 @@ export function ArrowsPathOverlay({
     container.dataset.scrolltriggerCount = String(ScrollTrigger.getAll().length);
   }, [containerRef, geometry.d, geometry.endX, geometry.endY, reducedMotion, updateLitStops]);
 
-  // Persistent single ScrollTrigger tied to container scroll; debounced resize rebuilds SVG path cleanly without creating new ScrollTriggers
+  // Persistent single ScrollTrigger tied to container scroll; debounced resize rebuilds SVG path cleanly without extra triggers
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -269,13 +292,18 @@ export function ArrowsPathOverlay({
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           const pathEl = pathRef.current;
+          const brownEl = brownEdgeRef.current;
           const tipEl = tipRef.current;
           const { totalLength, thresholds } = metricsRef.current;
           if (!pathEl || totalLength <= 0) return;
 
           const p = Math.min(Math.max(self.progress, 0), 1);
           const dist = totalLength * p;
-          pathEl.style.strokeDashoffset = `${Math.max(0, totalLength - dist)}`;
+          const dashOffset = `${Math.max(0, totalLength - dist)}`;
+          pathEl.style.strokeDashoffset = dashOffset;
+          if (brownEl) {
+            brownEl.style.strokeDashoffset = dashOffset;
+          }
 
           if (tipEl && typeof pathEl.getPointAtLength === 'function') {
             const pt = pathEl.getPointAtLength(dist);
@@ -300,6 +328,9 @@ export function ArrowsPathOverlay({
     };
   }, [containerRef, recomputePath, reducedMotion, updateLitStops]);
 
+  const goldWidth = geometry.isMobile ? 4 : 5;
+  const edgeWidth = goldWidth + 3; // 1.5px dark-brown casing on each side of gold path in light scenes
+
   return (
     <div
       aria-hidden="true"
@@ -314,64 +345,101 @@ export function ArrowsPathOverlay({
         className="w-full h-full block"
       >
         <defs>
-          <filter id={filterId} x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#F4A21B" floodOpacity="0.45" />
+          <filter id={glowId} x="-15%" y="-15%" width="130%" height="130%">
+            <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#F4A21B" floodOpacity="0.65" />
           </filter>
+          <clipPath id={lightClipId}>
+            {geometry.lightBands.map((band, idx) => (
+              <rect
+                key={idx}
+                x={0}
+                y={band.y}
+                width={geometry.width}
+                height={band.height}
+              />
+            ))}
+          </clipPath>
         </defs>
 
         {geometry.d && (
           <>
-            {/* Faint bronze guide rail visible in both light & dark scenes */}
+            {/* Visible dotted ahead guide at 35% opacity */}
             <path
+              data-arrows-guide="true"
               d={geometry.d}
               fill="none"
-              stroke="#8C6A3B"
-              strokeOpacity="0.3"
-              strokeWidth="2.5"
-              strokeDasharray="6 8"
+              stroke="#C9972C"
+              strokeOpacity="0.35"
+              strokeWidth={geometry.isMobile ? 3 : 4}
+              strokeDasharray="4 10"
               strokeLinecap="round"
             />
-            {/* Drawn golden scroll path */}
+            {/* Thin 1.5px dark-brown edge ONLY in light scenes */}
+            <path
+              ref={brownEdgeRef}
+              d={geometry.d}
+              fill="none"
+              stroke="#4A250E"
+              strokeOpacity="0.88"
+              strokeWidth={edgeWidth}
+              strokeLinecap="round"
+              clipPath={geometry.lightBands.length > 0 ? `url(#${lightClipId})` : undefined}
+            />
+            {/* Drawn warm gold path (5px desktop / 4px phone) with soft glow */}
             <path
               ref={pathRef}
               data-arrows-path="true"
               d={geometry.d}
               fill="none"
-              stroke="#D4AF37"
-              strokeWidth="3.5"
+              stroke="#F4A21B"
+              strokeWidth={goldWidth}
               strokeLinecap="round"
-              filter={`url(#${filterId})`}
+              filter={`url(#${glowId})`}
             />
           </>
         )}
       </svg>
 
-      {/* Leading arrowhead and short shaft riding along path tangent */}
+      {/* Leading ~56px glowing arrowhead and shaft riding along path tangent */}
       <div
         ref={tipRef}
         data-arrow-tip="true"
-        className="pointer-events-none absolute left-0 top-0 -ml-10 -mt-2.5 w-10 h-5"
-        style={{ transformOrigin: '100% 50%' }}
+        className="pointer-events-none absolute left-0 top-0 -ml-[56px] -mt-[14px] w-[56px] h-[28px]"
+        style={{
+          transformOrigin: '100% 50%',
+          filter: 'drop-shadow(0 0 8px rgba(244, 162, 27, 0.78))',
+        }}
       >
-        <svg viewBox="0 0 40 20" className="w-full h-full overflow-visible" fill="none">
+        <svg viewBox="0 0 56 28" className="w-full h-full overflow-visible" fill="none">
+          {/* Dark outline for clarity against sky & light hills */}
           <path
-            d="M2 10H31"
-            stroke="#14382A"
-            strokeWidth="4.2"
+            d="M4 14H41"
+            stroke="#3B1D0A"
+            strokeWidth="6.5"
             strokeLinecap="round"
-            strokeOpacity="0.45"
+            strokeOpacity="0.6"
           />
+          {/* Glowing gold shaft */}
           <path
-            d="M2 10H31"
+            d="M4 14H41"
             stroke="#F4A21B"
-            strokeWidth="2.4"
+            strokeWidth="3.5"
             strokeLinecap="round"
           />
+          {/* Subtle tail fletching */}
           <path
-            d="M25 3.5L39 10L25 16.5L28.5 10Z"
+            d="M3 10L10 14L3 18"
+            stroke="#F4A21B"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Pointed golden arrowhead */}
+          <path
+            d="M35 5.5L55 14L35 22.5L40.5 14Z"
             fill="#F4A21B"
-            stroke="#14382A"
-            strokeWidth="1.2"
+            stroke="#3B1D0A"
+            strokeWidth="1.5"
             strokeLinejoin="round"
           />
         </svg>

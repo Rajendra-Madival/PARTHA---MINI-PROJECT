@@ -6,7 +6,8 @@ This repository houses the PARTHA React + Vite + Express + Firebase application 
 
 ```bash
 npm install --legacy-peer-deps
-npm run dev      # Starts Express + Vite dev middleware on port 3000
+npm run art      # Processes art/incoming/*.png -> public/landing/art/*.webp
+npm run dev      # Starts Express + Vite dev middleware on port 3000 (reads .env)
 ```
 
 ## Verification & Quality Gates
@@ -14,11 +15,10 @@ npm run dev      # Starts Express + Vite dev middleware on port 3000
 ```bash
 npm run lint     # TypeScript check (tsc --noEmit)
 npm run build    # Production Vite build -> dist/
-npm test         # Vitest unit/contrast/copy/DOM tests (tests/phaseV31.test.tsx)
+npm test         # Vitest unit/contrast/DOM tests (tests/phaseV31.test.tsx, tests/phaseV32.test.tsx)
 ```
 
-## Phase V3-1: Foundation ("The Arrow's Path")
+## Phase V3-2: Art Integration ("The Arrow's Path")
 
-- **Architecture**: Lazy-loaded landing page (`src/landing/LandingPage.tsx`) split into its own Vite chunk (`React.lazy` in `src/App.tsx`), wired to the app's `AuthScreen` (`Log in` and `Create your account` at Scene 5: The Gate).
-- **Scenes & Waypoints**: Six `min-h-[120vh]` scroll scenes (`hero`, `ashram`, `bridge`, `kurukshetra`, `dawn-lake`, `gate`) with placeholder CSS gradient backdrops (`SceneBackdrop`), alternating light (`#FAF7F0`, `#ECFDF5`) and dark (`#14382A`, `#1B1F4B`, `#0B1026`) modes, five keyboard-accessible waypoints (`Stop 1..5`), and single-open expandable step cards (`Escape` collapses).
-- **The Arrow's Path**: Continuous dynamic SVG Bezier curve (`ArrowsPathOverlay`) drawn with `stroke-dashoffset` via GSAP `ScrollTrigger` synced to `Lenis` (vertical rail `< 768px`, `prefers-reduced-motion` static full-path fallback).
+- **Artwork Pipeline (`scripts/process-art.mjs`)**: Converts all 27 owner-painted PNGs from `art/incoming/` into `public/landing/art/*.webp` (`1920px` + `960px` scene layers and trimmed `alphaQuality: 90` props/characters) and generates `screenshots/V32-cutouts.png`.
+- **Scene Depth & Props (`src/landing/content/scenes.ts`, `SceneBackdrop.tsx`, `SceneProps.tsx`)**: Normalized 60% horizons with `?debug=horizon` (dev-only), GPU `translate3d` ScrollTrigger parallax (`sky 0.15`, `land 0.35`, `fore 0.7`), Scene 2 scroll-driven sun-sinking, eager `<link rel="preload">` hero assets (`192.6 KB` total desktop hero images), lazy `IntersectionObserver` loading (`100% 0px`), and reduced-motion static fallbacks.

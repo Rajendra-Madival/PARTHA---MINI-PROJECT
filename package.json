@@ -11,7 +11,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "art": "node scripts/process-art.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -54,6 +55,7 @@
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "jsdom": "^31.0.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
