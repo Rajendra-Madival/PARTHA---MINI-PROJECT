@@ -506,11 +506,11 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
                 alt="PARTHA guiding your journey chariot illustration"
                 loading="lazy"
                 decoding="async"
-                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-left md:object-center"
+                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-left xl:object-center"
               />
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[#FAF7F0]/75 backdrop-blur-[2px] md:bg-gradient-to-r md:from-transparent md:via-[#FAF7F0]/25 md:to-[#FAF7F0]/70 md:backdrop-blur-none"
+                className="pointer-events-none absolute inset-0 bg-[#FAF7F0]/70 backdrop-blur-[2px] md:bg-gradient-to-r md:from-transparent md:via-[#FAF7F0]/15 md:to-[#FAF7F0]/68 md:backdrop-blur-none"
               />
               <div
                 data-gate-login-align="true"
