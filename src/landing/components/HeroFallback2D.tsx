@@ -13,13 +13,10 @@ const FALLBACK_STARS = Array.from({ length: 42 }, (_, idx) => ({
 }));
 
 export function HeroFallback2D({
-  scrollProgress,
-  reducedMotion,
+  scrollProgress: _scrollProgress,
+  reducedMotion: _reducedMotion,
   is3DReady,
 }: HeroFallback2DProps) {
-  // Section 6.1: Gopuram moves at 0.4x scroll speed inside the fixed viewport layer
-  const gopuramOffsetVh = reducedMotion ? 0 : -scrollProgress * 40;
-
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       {/* Layer 1: Sky gradient SVG + static star points */}
@@ -60,64 +57,7 @@ export function HeroFallback2D({
         </g>
       </svg>
 
-      {/* Layer 2: Gopuram silhouette SVG (always 2D SVG, 0.4x scroll speed) */}
-      <div
-        data-hero-layer="gopuram"
-        className="absolute inset-x-0 bottom-0 flex justify-center will-change-transform"
-        style={{
-          transform: `translate3d(0, ${gopuramOffsetVh}vh, 0)`,
-        }}
-      >
-        <svg
-          viewBox="0 0 1200 320"
-          preserveAspectRatio="xMidYMax meet"
-          className="w-full max-w-6xl h-[220px] sm:h-[280px] md:h-[320px]"
-        >
-          <defs>
-            <linearGradient id="hero-gopuram-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#12173A" stopOpacity="0.72" />
-              <stop offset="100%" stopColor="#0B1026" stopOpacity="0.92" />
-            </linearGradient>
-          </defs>
-          {/* Outer temple silhouette */}
-          <path
-            d="M40 320H1160M170 320V268H260V320M940 320V268H1030V320M310 320V236H890V320M365 236V180H835V236M420 180V130H780V180M472 130V86H728V130M524 86V52H676V86M560 52L600 16L640 52Z"
-            fill="url(#hero-gopuram-fill)"
-            stroke="#D4AF37"
-            strokeOpacity="0.26"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-          {/* Central arched gateway outline */}
-          <path
-            d="M554 320V220C554 195 574 176 600 176C626 176 646 195 646 220V320"
-            fill="#0B1026"
-            fillOpacity="0.88"
-            stroke="#D4AF37"
-            strokeOpacity="0.34"
-            strokeWidth="1.5"
-          />
-          {/* Kalasha finial */}
-          <path
-            d="M600 6V16"
-            stroke="#D4AF37"
-            strokeOpacity="0.45"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <circle
-            cx="600"
-            cy="26"
-            r="5"
-            fill="none"
-            stroke="#D4AF37"
-            strokeOpacity="0.38"
-            strokeWidth="1.5"
-          />
-        </svg>
-      </div>
-
-      {/* Layers 3 & 4 (2D Fallback): Layered Lotus + Diya Glow SVGs (visible until 3D is ready) */}
+      {/* Ambient 2D fallback lotus + diya when 3D WebGL scene is not active */}
       <div
         data-hero-layer="fallback-motifs"
         className="absolute inset-x-0 bottom-[6%] sm:bottom-[8%] flex flex-col items-center justify-end transition-opacity duration-500"

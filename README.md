@@ -23,3 +23,8 @@ npm test         # Vitest unit/contrast/copy/DOM tests (tests/phase4ra.test.tsx)
 - **Fonts**: `Cormorant Garamond` (display), `Montserrat` (body/UI), and `Noto Serif Devanagari` (Sanskrit accents).
 - **Section Modes**: Alternating dark (`#hero`, `#question`, `#epic-path`, `#login-gate`, `#footer`) and light (`#gurukul`, `#highlights`, `#stories`, `#give-back`) sections with ScrollTrigger-driven navbar mode switching.
 - **Placeholder Art & Copy Markers**: Static SVG placeholders (`// ART: PLACEHOLDER`) and owner-review copy items (`// CONFIRM: copy owner`) are ready for Phases 4R-B/4R-C/5.
+
+## Phase 4R-B Status
+
+- **Hero Scene**: Nine-layer stack (dark sky, 60% Phase 4 ambient 3D layer, `0.4x` parallax banyan + gopuram silhouettes, terracotta road strip, drifting chariot with scroll-linked rotating wheel, anonymous standing archer replay button `"Replay the archer's shot"`, flying arrow aiming at the left edge of `"Enter the Gurukul"`, text, and chakra scroll cue).
+- **Tests**: Unit checks in `tests/phase4ra.test.tsx` and `tests/phase4rb.test.tsx`.

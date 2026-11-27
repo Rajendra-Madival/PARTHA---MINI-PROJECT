@@ -1,8 +1,8 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ComponentPropsWithRef, ReactNode } from 'react';
 
 type ButtonVariant = 'primary' | 'ghost' | 'outline';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ComponentPropsWithRef<'button'> {
   variant?: ButtonVariant;
   fullWidth?: boolean;
   children: ReactNode;

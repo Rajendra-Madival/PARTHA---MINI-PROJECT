@@ -71,6 +71,7 @@ export const COPY = {
     primaryCta: 'Enter the Gurukul',
     secondaryCta: 'Explore the journey',
     scrollCueLabel: 'Scroll to explore the journey',
+    replayShotLabel: "Replay the archer's shot",
   },
   question: {
     headingPrefix: 'Every seeker begins with a ',
