@@ -173,4 +173,30 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
     expect(loginOverlay.style.opacity).toBe('1');
     expect(loginOverlay.style.pointerEvents).toBe('auto');
   });
+
+  it('removes footer, uses updated Hero & Ashram copy, and wires Navbar Register + Log in buttons', async () => {
+    setupDomStubs({ reducedMotion: false, width: 1440 });
+    const onSelectGateMode = vi.fn();
+    const { LandingPage } = await import('../src/landing/LandingPage');
+    const { container } = render(<LandingPage onSelectGateMode={onSelectGateMode} />);
+
+    expect(container.querySelector('footer')).toBeNull();
+    expect(container.querySelector('#scene-hero')?.textContent).toContain(
+      'From Alumni Experience to Student Success',
+    );
+    expect(container.querySelector('#heading-ashram')?.textContent).toBe('Find your guidance');
+
+    const nav = container.querySelector('#navbar nav')!;
+    const navButtons = Array.from(nav.querySelectorAll('button'));
+    const registerBtn = navButtons.find((b) => b.textContent === 'Register')!;
+    const loginBtn = navButtons.find((b) => b.textContent === 'Log in')!;
+    expect(registerBtn).toBeDefined();
+    expect(loginBtn).toBeDefined();
+
+    fireEvent.click(registerBtn);
+    expect(onSelectGateMode).toHaveBeenCalledWith('register');
+
+    fireEvent.click(loginBtn);
+    expect(onSelectGateMode).toHaveBeenCalledWith('login');
+  });
 });

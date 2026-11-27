@@ -6,7 +6,11 @@ import { scrollToTarget } from '../motion/lenis';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function Navbar() {
+export function Navbar({
+  onSelectGateAuth,
+}: {
+  onSelectGateAuth?: (mode: 'login' | 'register') => void;
+} = {}) {
   const [navMode, setNavMode] = useState<SectionMode>('light');
 
   useEffect(() => {
@@ -29,10 +33,30 @@ export function Navbar() {
       }
     });
 
-    return () => ctx.revert();
+    const scrollToGateAuth = (mode: 'login' | 'register') => {
+    onSelectGateAuth?.(mode);
+    const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
+    if (gateTrigger) {
+      scrollToTarget(gateTrigger.end, { duration: 1.4 });
+      return;
+    }
+    scrollToTarget('#scene-gate', { duration: 1.4 });
+  };
+
+  return () => ctx.revert();
   }, []);
 
   const isDark = navMode === 'dark';
+
+  const scrollToGateAuth = (mode: 'login' | 'register') => {
+    onSelectGateAuth?.(mode);
+    const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
+    if (gateTrigger) {
+      scrollToTarget(gateTrigger.end, { duration: 1.4 });
+      return;
+    }
+    scrollToTarget('#scene-gate', { duration: 1.4 });
+  };
 
   return (
     <header
@@ -64,25 +88,28 @@ export function Navbar() {
           {COPY.brand.name}
         </a>
 
-        <button
-          type="button"
-          onClick={() => {
-            const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
-            if (gateTrigger) {
-              scrollToTarget(gateTrigger.end, { duration: 1.4 });
-              return;
-            }
-            scrollToTarget('#scene-gate', { duration: 1.4 });
-          }}
-          className={[
-            'min-h-[44px] min-w-[44px] px-5 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer border',
-            isDark
-              ? 'border-[rgba(212,175,55,0.55)] bg-[rgba(27,31,75,0.75)] text-[var(--c-ivory)] hover:border-[var(--c-saffron)] hover:bg-[var(--c-night-1)]'
-              : 'border-[rgba(20,56,42,0.3)] bg-[#FFFEFA] text-[var(--c-forest-900)] hover:border-[var(--c-forest-900)] hover:bg-[var(--c-brand-green)]',
-          ].join(' ')}
-        >
-          {COPY.nav.login}
-        </button>
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => scrollToGateAuth('register')}
+            className={[
+              'min-h-[44px] min-w-[44px] px-4 sm:px-5 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer border',
+              isDark
+                ? 'border-[rgba(212,175,55,0.55)] bg-[rgba(27,31,75,0.75)] text-[var(--c-ivory)] hover:border-[var(--c-saffron)] hover:bg-[var(--c-night-1)]'
+                : 'border-[rgba(20,56,42,0.3)] bg-[#FFFEFA] text-[var(--c-forest-900)] hover:border-[var(--c-forest-900)] hover:bg-[var(--c-brand-green)]',
+            ].join(' ')}
+          >
+            {COPY.nav.register}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => scrollToGateAuth('login')}
+            className="v3-btn-primary min-h-[44px] min-w-[44px] px-4 sm:px-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+          >
+            {COPY.nav.login}
+          </button>
+        </div>
       </nav>
     </header>
   );

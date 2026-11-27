@@ -91,6 +91,10 @@ export default function App() {
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authGateMode, setAuthGateMode] = useState<'login' | 'register' | null>(null);
+  const [gateAuthRequest, setGateAuthRequest] = useState<{
+    mode: 'login' | 'register';
+    nonce: number;
+  }>({ mode: 'login', nonce: 0 });
   const [activeTab, setActiveTab] = useState<ActiveTab>('discover');
   const [studentProfile, setStudentProfile] =
     useState<StudentTargetProfile | null>(null);
@@ -754,6 +758,9 @@ export default function App() {
       <Suspense fallback={<div className="min-h-screen bg-[#FAF7F0]" />}>
         <LandingPage
           onOpenAuth={(mode) => setAuthGateMode(mode)}
+          onSelectGateMode={(mode) =>
+            setGateAuthRequest((prev) => ({ mode, nonce: prev.nonce + 1 }))
+          }
           gateAuthSlot={
             <AuthScreen
               embedded
@@ -762,7 +769,8 @@ export default function App() {
               checkingConnection={checkingConnection}
               onRetryHealth={checkHealthAndBootstrap}
               onAuthenticated={handleAuthenticated}
-              initialMode="login"
+              initialMode={gateAuthRequest.mode}
+              modeNonce={gateAuthRequest.nonce}
             />
           }
         />

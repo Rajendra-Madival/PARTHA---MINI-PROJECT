@@ -25,6 +25,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 export interface LandingPageProps {
   onOpenAuth?: (mode: 'login' | 'register') => void;
+  onSelectGateMode?: (mode: 'login' | 'register') => void;
   gateAuthSlot?: ReactNode;
 }
 
@@ -61,7 +62,11 @@ function FallbackGateLogin({ onOpenAuth }: { onOpenAuth?: (mode: 'login' | 'regi
   );
 }
 
-export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {}) {
+export function LandingPage({
+  onOpenAuth,
+  onSelectGateMode,
+  gateAuthSlot,
+}: LandingPageProps = {}) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const gateSectionRef = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
@@ -253,7 +258,7 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
         {COPY.brand.skipToContent}
       </a>
 
-      <Navbar />
+      <Navbar onSelectGateAuth={onSelectGateMode} />
 
       <div ref={scrollContainerRef} className="relative w-full overflow-x-clip">
         {/* Single unified path & arrow overlay (z-20): strictly above scenes (z-1..6) and below HUD (z-30) */}
@@ -436,7 +441,7 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
             data-scene={gateScene.id}
             data-section-mode={gateScene.mode}
             aria-labelledby={`heading-${gateScene.id}`}
-            className="relative -mt-[12vh] h-[calc(112vh-38px)] min-h-[calc(112vh-38px)] flex flex-col justify-end overflow-hidden"
+            className="relative -mt-[12vh] h-[112vh] min-h-[112vh] flex flex-col justify-end overflow-hidden"
           >
             <h2 id={`heading-${gateScene.id}`} className="sr-only">
               {gateScene.epicTitle}
@@ -514,23 +519,15 @@ export function LandingPage({ onOpenAuth, gateAuthSlot }: LandingPageProps = {})
               />
               <div
                 data-gate-login-align="true"
-                className="relative z-10 mx-auto flex min-h-full w-full max-w-[1380px] items-center justify-center md:justify-end px-4 pt-20 pb-8 sm:px-8 md:px-10 lg:px-14 xl:px-20"
+                className="relative z-10 mx-auto flex min-h-full w-full max-w-[1380px] justify-center md:justify-end px-4 pt-20 pb-8 sm:px-8 md:px-10 lg:px-14 xl:px-20"
               >
-                {gateAuthSlot ?? <FallbackGateLogin onOpenAuth={onOpenAuth} />}
+                <div className="my-auto w-full flex justify-center md:justify-end">
+                  {gateAuthSlot ?? <FallbackGateLogin onOpenAuth={onOpenAuth} />}
+                </div>
               </div>
             </div>
           </section>
         </main>
-
-        <footer
-          data-scene="footer"
-          data-section-mode="light"
-          className="relative z-30 border-t border-[rgba(20,56,42,0.16)] bg-[var(--c-brand-white)] py-3 px-5 text-center"
-        >
-          <p className="text-xs font-medium text-[var(--c-ink-soft)] m-0">
-            {COPY.footer.creditLine}
-          </p>
-        </footer>
       </div>
     </div>
   );
