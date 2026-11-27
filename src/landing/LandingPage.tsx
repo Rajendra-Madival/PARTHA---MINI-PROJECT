@@ -185,38 +185,19 @@ export function LandingPage({
     return () => ctx.revert();
   }, [reducedMotion]);
 
-  // Scene 4 (The Dawn Lake): lotus starts closed (lotus-bud) and blooms open as you scroll past
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container || reducedMotion) return;
-
-    const lakeEl = container.querySelector<HTMLElement>('#scene-dawn-lake');
+  // Scene 4 (The Dawn Lake): lotus stays closed until the arrow tip reaches near Stop 4
+  const handleLotusBloomChange = useCallback((p: number) => {
+    const lakeEl = scrollContainerRef.current?.querySelector<HTMLElement>('#scene-dawn-lake');
     if (!lakeEl) return;
-
-    const ctx = gsap.context(() => {
-      ScrollTrigger.create({
-        id: 'dawn-lake-lotus-bloom',
-        trigger: lakeEl,
-        start: 'top 58%',
-        end: 'top 22%',
-        scrub: 0.4,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          if (lakeEl.getBoundingClientRect().height === 0) return;
-          const p = Math.min(Math.max(self.progress, 0), 1);
-          const budEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-bud"]');
-          const openEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-open"]');
-          if (budEl) budEl.style.opacity = String((1 - p).toFixed(3));
-          if (openEl) {
-            openEl.style.opacity = String(p.toFixed(3));
-            openEl.dataset.lotusBloomed = p >= 0.5 ? 'true' : 'false';
-          }
-        },
-      });
-    }, lakeEl);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
+    const clamped = Math.min(Math.max(p, 0), 1);
+    const budEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-bud"]');
+    const openEl = lakeEl.querySelector<HTMLElement>('[data-prop="lotus-open"]');
+    if (budEl) budEl.style.opacity = String((1 - clamped).toFixed(3));
+    if (openEl) {
+      openEl.style.opacity = String(clamped.toFixed(3));
+      openEl.dataset.lotusBloomed = clamped >= 0.5 ? 'true' : 'false';
+    }
+  }, []);
 
   const handleLitStopsChange = useCallback((nextLit: boolean[]) => {
     setLitStops(nextLit);
@@ -267,6 +248,7 @@ export function LandingPage({
           hasShot={hasHeroShot}
           onActiveStopsChange={handleLitStopsChange}
           onActiveSceneChange={handleActiveSceneChange}
+          onLotusBloomChange={handleLotusBloomChange}
         />
 
         <main id="main-content" tabIndex={-1}>

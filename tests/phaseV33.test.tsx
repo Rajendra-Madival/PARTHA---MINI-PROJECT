@@ -208,6 +208,30 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
     expect(nav.querySelector('a')?.className).toContain('v3-brand-wordmark');
   });
 
+  it('keeps Dawn Lake lotus closed in upper sky and blooms slightly before Stop 4', async () => {
+    const { computeLotusBloomProgress } = await import(
+      '../src/landing/components/ArrowsPathOverlay'
+    );
+    const totalLength = 3200;
+    const stop4 = 0.82;
+
+    // Arrow entering Dawn Lake sky stays at 0 (lotus closed)
+    expect(computeLotusBloomProgress(0.72, stop4, totalLength)).toBe(0);
+    // Arrow ~140px above Stop 4 remains closed
+    expect(computeLotusBloomProgress(0.775, stop4, totalLength)).toBe(0);
+    // Arrow approaching ~96px above Stop 4 has begun blooming
+    const earlyBloom = computeLotusBloomProgress(0.79, stop4, totalLength);
+    expect(earlyBloom).toBeGreaterThan(0.15);
+    expect(earlyBloom).toBeLessThan(0.45);
+    // Arrow near Stop 4 (~16px before) is nearly open
+    const nearBloom = computeLotusBloomProgress(0.815, stop4, totalLength);
+    expect(nearBloom).toBeGreaterThan(0.8);
+    expect(nearBloom).toBeLessThan(1);
+    // Arrow reaching Stop 4 completes the bloom
+    expect(computeLotusBloomProgress(stop4, stop4, totalLength)).toBe(1);
+    expect(computeLotusBloomProgress(0.92, stop4, totalLength)).toBe(1);
+  });
+
   it('clicking "Join as alumni" opens Alumni registration directly', async () => {
     setupDomStubs({ reducedMotion: false, width: 1440 });
     const onOpenAuth = vi.fn();

@@ -11,6 +11,7 @@ interface ArrowsPathOverlayProps {
   hasShot?: boolean;
   onActiveStopsChange: (litStops: boolean[]) => void;
   onActiveSceneChange?: (sceneId: StoryWaypointScene['id'] | null) => void;
+  onLotusBloomChange?: (progress: number) => void;
 }
 
 interface LightBandRect {
@@ -145,12 +146,29 @@ function computeScrollMappedProgress(
   return 1;
 }
 
+/**
+ * Keeps Dawn Lake's lotus closed while entering the upper sky, starts blooming ~125px before Stop 4,
+ * reaches full bloom right at Stop 4, and closes smoothly if the user scrolls back up.
+ */
+export function computeLotusBloomProgress(
+  progress: number,
+  stop4Threshold: number,
+  totalLength: number,
+): number {
+  if (totalLength <= 0) return 0;
+  const leadFraction = Math.min(0.042, 125 / totalLength);
+  const start = Math.max(0, stop4Threshold - leadFraction);
+  const end = Math.min(1, Math.max(start + 1e-4, stop4Threshold));
+  return Math.min(1, Math.max(0, (progress - start) / (end - start)));
+}
+
 export function ArrowsPathOverlay({
   containerRef,
   reducedMotion,
   hasShot = false,
   onActiveStopsChange,
   onActiveSceneChange,
+  onLotusBloomChange,
 }: ArrowsPathOverlayProps) {
   const pathRef = useRef<SVGPathElement | null>(null);
   const brownEdgeRef = useRef<SVGPathElement | null>(null);
@@ -202,6 +220,8 @@ export function ArrowsPathOverlay({
   onActiveStopsChangeRef.current = onActiveStopsChange;
   const onActiveSceneChangeRef = useRef(onActiveSceneChange);
   onActiveSceneChangeRef.current = onActiveSceneChange;
+  const onLotusBloomChangeRef = useRef(onLotusBloomChange);
+  onLotusBloomChangeRef.current = onLotusBloomChange;
 
   const updateLitStops = useCallback(
     (progress: number, thresholds: number[], launchProgress: number, isReduced: boolean) => {
@@ -270,6 +290,7 @@ export function ArrowsPathOverlay({
         gsap.set(tipEl, { x: endX, y: endY, rotation: endAngle, opacity: 1 });
       }
       updateLitStops(1, thresholds, launchProgress, true);
+      onLotusBloomChangeRef.current?.(1);
       return;
     }
 
@@ -316,6 +337,9 @@ export function ArrowsPathOverlay({
     }
 
     updateLitStops(effective, thresholds, launchProgress, false);
+    onLotusBloomChangeRef.current?.(
+      computeLotusBloomProgress(effective, thresholds[3] ?? 1, totalLength),
+    );
   }, [updateLitStops]);
 
   const recomputePath = useCallback(() => {
