@@ -1,0 +1,24 @@
+.partha-landing-v1 {
+  --c-night-0: #0B1026;    /* deepest background */
+  --c-night-1: #1B1F4B;    /* section background */
+  --c-night-2: #262B63;    /* raised surfaces, cards */
+  --c-saffron: #F4A21B;    /* primary accent, CTAs */
+  --c-marigold: #FF7A1A;   /* gradient partner for saffron */
+  --c-vermilion: #C0392B;  /* sparing emphasis only. Never for errors. */
+  --c-gold: #D4AF37;       /* borders, ornaments, heading details */
+  --c-ivory: #FFF6E3;      /* primary text on dark */
+  --c-ivory-dim: #D9CFB8;  /* secondary text. Must pass 4.5:1 on night-1. */
+  --c-lotus: #E88DB0;      /* secondary accent */
+  --c-peacock: #1F7A7A;    /* secondary accent */
+  --c-focus: #FFD166;      /* focus ring */
+  --c-error: #F2B8A2;      /* form error text on dark */
+
+  --grad-cta: linear-gradient(135deg, var(--c-saffron), var(--c-marigold));
+  --grad-bg: linear-gradient(180deg, var(--c-night-0) 0%, var(--c-night-1) 100%);
+  --grad-gold: linear-gradient(135deg, #FFF6E3 0%, #D4AF37 45%, #F4A21B 100%);
+
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-devanagari: 'Noto Serif Devanagari', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mixed: 'Mukta', 'Inter', system-ui, sans-serif;
+}
