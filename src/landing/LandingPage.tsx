@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import '@fontsource/cinzel-decorative/700.css';
+import '@fontsource/cinzel/700.css';
 import '@fontsource/cormorant-garamond/500.css';
 import '@fontsource/cormorant-garamond/600.css';
 import '@fontsource/cormorant-garamond/700.css';
@@ -239,10 +241,6 @@ export function LandingPage({
     setExpandedStopId(scene.id);
   }, []);
 
-  const handleHeroFollow = useCallback(() => {
-    scrollToTarget(`#scene-${COPY.waypoints[0].id}`, { duration: 1.4 });
-  }, []);
-
   const handleHeroShoot = useCallback(() => {
     setHasHeroShot(true);
   }, []);
@@ -324,17 +322,9 @@ export function LandingPage({
                 {COPY.hero.tagline}
               </p>
 
-              <p className="text-sm sm:text-lg text-[var(--c-ink)] font-medium mb-3.5 sm:mb-6 max-w-xl">
+              <p className="text-sm sm:text-lg text-[var(--c-ink)] font-medium mb-0 max-w-xl">
                 {COPY.hero.subline}
               </p>
-
-              <button
-                type="button"
-                onClick={handleHeroFollow}
-                className="v3-btn-primary min-h-[44px] px-6 sm:px-7 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base cursor-pointer transition-transform duration-150 active:scale-[0.98]"
-              >
-                {COPY.hero.cta}
-              </button>
             </div>
           </section>
 

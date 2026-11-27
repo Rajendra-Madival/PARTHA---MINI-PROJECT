@@ -201,6 +201,11 @@ describe('Phase V3-3 (Revised): Single Hero arrow, clean V3-2b scenes, and Gate 
 
     const backdrop = container.querySelector('[data-gate-login-backdrop="true"]');
     expect(backdrop?.className).toContain('top-16');
+
+    const hero = container.querySelector('#scene-hero')!;
+    expect(hero.textContent).not.toContain('Follow the arrow');
+    expect(hero.querySelector('#hero-heading')?.className).toContain('v3-hero-title');
+    expect(nav.querySelector('a')?.className).toContain('v3-brand-wordmark');
   });
 
   it('clicking "Join as alumni" opens Alumni registration directly', async () => {

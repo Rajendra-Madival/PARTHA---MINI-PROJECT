@@ -38,6 +38,7 @@
 }
 
 .partha-landing-v3 {
+  --font-landing-brand: 'Cinzel Decorative', 'Cinzel', Georgia, serif;
   --font-landing-display: 'Cormorant Garamond', Georgia, serif;
   --font-landing-devanagari: 'Noto Serif Devanagari', Georgia, serif;
   --font-landing-body: 'Montserrat', system-ui, -apple-system, sans-serif;

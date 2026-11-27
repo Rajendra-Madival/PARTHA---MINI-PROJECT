@@ -33,17 +33,7 @@ export function Navbar({
       }
     });
 
-    const scrollToGateAuth = (mode: 'login' | 'register') => {
-    onSelectGateAuth?.(mode);
-    const gateTrigger = ScrollTrigger.getById('gate-pinned-zoom');
-    if (gateTrigger) {
-      scrollToTarget(gateTrigger.end, { duration: 1.4 });
-      return;
-    }
-    scrollToTarget('#scene-gate', { duration: 1.4 });
-  };
-
-  return () => ctx.revert();
+    return () => ctx.revert();
   }, []);
 
   const isDark = navMode === 'dark';
@@ -81,7 +71,7 @@ export function Navbar({
           }}
           className={[
             'inline-flex items-center min-h-[44px] px-2 -ml-2 rounded-lg no-underline transition-colors duration-200',
-            'font-[var(--font-landing-display)] text-2xl sm:text-3xl font-semibold tracking-[0.06em]',
+            'v3-brand-wordmark text-2xl sm:text-3xl font-bold tracking-[0.08em]',
             isDark ? 'text-[var(--c-ivory)]' : 'text-[var(--c-forest-900)]',
           ].join(' ')}
         >
