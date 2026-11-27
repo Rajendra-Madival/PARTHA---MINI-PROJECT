@@ -22,13 +22,14 @@ export const COPY = {
   },
   nav: {
     ariaLabel: 'Primary navigation',
+    register: 'Register',
     login: 'Log in',
   },
   hero: {
     id: 'hero' as const,
     mode: 'light' as SectionMode,
     title: 'Partha',
-    tagline: 'Where every student finds a guru.',
+    tagline: 'From Alumni Experience to Student Success',
     // CONFIRM: copy owner
     subline: 'Alumni mentorship for the path ahead.',
     cta: 'Follow the arrow',
@@ -45,7 +46,7 @@ export const COPY = {
       side: 'right',
       epicTitle: 'The Ashram',
       waypointLabel: 'Stop 1 of 5: The Ashram',
-      stepTitle: 'Find your guru',
+      stepTitle: 'Find your guidance',
       // CONFIRM: copy owner
       body: 'Browse verified alumni from your college and find the guide who has walked your path.',
       backdropClass: 'v3-backdrop-warm-gold',

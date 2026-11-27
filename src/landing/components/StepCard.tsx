@@ -97,7 +97,7 @@ export function StepCard({
         'backdrop-blur-md border transition-all duration-200',
         surfaceClasses,
         expanded
-          ? 'w-[min(340px,calc(100vw-2rem))] max-w-[340px] rounded-2xl p-4 sm:p-5'
+          ? 'w-[min(340px,calc(100vw-76px))] md:w-[min(340px,calc(100vw-2rem))] max-w-[340px] rounded-2xl p-4 sm:p-5'
           : 'w-fit max-w-[240px] max-h-[64px] rounded-2xl overflow-hidden',
       ].join(' ')}
     >

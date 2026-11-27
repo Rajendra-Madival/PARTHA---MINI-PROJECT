@@ -16,13 +16,18 @@ export function getLenis(): Lenis | null {
 }
 
 export function scrollToTarget(
-  target: string | HTMLElement,
+  target: string | HTMLElement | number,
   options: ScrollTargetOptions = {},
 ): void {
   const { duration = 1.4, offset = 0 } = options;
 
   if (activeLenis) {
     activeLenis.scrollTo(target, { offset, duration });
+    return;
+  }
+
+  if (typeof target === 'number') {
+    window.scrollTo({ top: target, behavior: 'auto' });
     return;
   }
 

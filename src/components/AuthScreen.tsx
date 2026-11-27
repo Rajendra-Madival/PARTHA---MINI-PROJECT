@@ -8,7 +8,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { parthaApi } from '../services/api';
 import { DomainSelect } from './DomainSelect';
 import { SkillPicker } from './SkillPicker';
@@ -29,6 +29,8 @@ interface AuthScreenProps {
   onAuthenticated: (session: AuthSession, notice?: string) => void;
   embedded?: boolean;
   initialMode?: 'login' | 'register';
+  initialRole?: UserRole;
+  modeNonce?: number;
 }
 
 const BRANCHES: BranchCode[] = ['CSE', 'ISE', 'ECE', 'ME', 'EEE'];
@@ -59,10 +61,17 @@ export function AuthScreen({
   onAuthenticated,
   embedded = false,
   initialMode = 'login',
+  initialRole = 'student',
+  modeNonce = 0,
 }: AuthScreenProps) {
   const prefersReducedMotion = useReducedMotion();
-  const [role, setRole] = useState<UserRole>('student');
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
+
+  useEffect(() => {
+    setMode(initialMode);
+    setRole(initialRole);
+  }, [initialMode, initialRole, modeNonce]);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

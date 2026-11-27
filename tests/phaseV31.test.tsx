@@ -118,9 +118,9 @@ describe('Phase V3-1: Scenes, 5 waypoints, expandable step cards, Gate, and redu
     expect(waypoints[1].getAttribute('aria-label')).toBe('Stop 2 of 5: The Bridge of Stones');
 
     const toggles = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('#scene-ashram button[aria-expanded], #scene-bridge button[aria-expanded], #scene-kurukshetra button[aria-expanded], #scene-dawn-lake button[aria-expanded], #scene-gate button[aria-expanded]'),
+      container.querySelectorAll<HTMLButtonElement>('#scene-ashram button[aria-expanded], #scene-bridge button[aria-expanded], #scene-kurukshetra button[aria-expanded], #scene-dawn-lake button[aria-expanded]'),
     );
-    expect(toggles).toHaveLength(5);
+    expect(toggles).toHaveLength(4);
     for (const btn of toggles) {
       expect(btn.getAttribute('aria-expanded')).toBe('false');
     }

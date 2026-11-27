@@ -22,8 +22,8 @@
 - **0. Hero (Bright dawn — white & light green):** Centered top copy (`"Partha"`, `"Where every student finds a guru."`, `"Alumni mentorship for the path ahead."`, `"Follow the arrow"` button scrolling to Scene 1). Rama stands small on the left hilltop below the title. No step card.
 - **1. The Ashram (Warm golden morning):** Seated sage-teacher slightly left of center; small brass diya to his right. Arrival: arrow lands with a golden sparkle, sage fades in, diya lights up by itself, `"Find your guru"` card opens (`"Browse verified alumni from your college and find the guide who has walked your path."`).
 - **2. The Bridge of Stones (Dusk — violet & orange):** Stone causeway into the sea. The sun is the centerpiece and sinks slowly behind the sea line as the visitor scrolls; stars may brighten slightly. No extra pictures. `"Request mentorship"` card opens on arrival (`"Send a request with your goal: Career Guidance, Resume Review, Internship Referral, or Project Help. Once your guru accepts, you can chat."`).
-- **3. Kurukshetra (Dark night — gold accents):** Moon at upper left; chariot in center with Krishna and Arjuna (Partha), swaying gently at all times; conch on the left; standalone wheel on the right. Three lit torches on the left with real text labels underneath: `Internships`, `Jobs`, `Projects`. Arrival: conch glows and pulses, chariot fades in, `"Discover opportunities"` card opens (`"Internships, jobs, and projects posted by verified alumni, all in one place."`).
-- **4. The Dawn Lake (Bright — lotus & diyas):** Still lake with a large central lotus bud in the water, floating diyas, and a temple on the right. Arrival: lotus bud opens by itself and small glowing scrolls float up like upvotes. A special glowing diya is a real `"Join as alumni"` button. `"Knowledge Hub"` card opens on arrival (`"Guides written by alumni, upvoted so the most useful rise to the top. Save what you need for later."` + `"Alumni: pass the lamp on."`).
+- **3. Kurukshetra (Dark night — gold accents):** Moon at upper left; chariot in center with Krishna and Arjuna (Partha); conch on the left. Arrival: `"Discover opportunities"` card opens (`"Internships, jobs, and projects posted by verified alumni, all in one place."`).
+- **4. The Dawn Lake (Bright — lotus & diyas):** Still lake with a large central lotus in the water (starting closed as `lotus-bud` and opening to `lotus-open` as the visitor scrolls past), floating diyas, and a temple on the right. `"Knowledge Hub"` card opens on arrival (`"Guides written by alumni, upvoted so the most useful rise to the top. Save what you need for later."` + `"Alumni: pass the lamp on."`).
 - **5. The Gate (Bright — gold):** Arrow lands in the middle of the closed palace doorway. Login card heading `"Enter the Gurukul"` with `"Log in"` and `"Create your account"` buttons (real login form wired later). Under reduced motion: no zoom, doors already open, login card visible immediately.
 
 ---
@@ -31,16 +31,17 @@
 ## 4. Flow Decisions (Interview Q&A)
 
 ### A. Hero Bow Shot
-- **Who starts the bow shot:** Both — the visitor can pull and release the bow (or tap on phones), and if they do nothing for about 5 seconds, Rama shoots automatically. Once fired, the arrow arcs upward and lands at the start of the golden path at the top-left.
-- **If the visitor scrolls before shooting:** Rama shoots right away as soon as scrolling begins, and the arrow smoothly catches up onto the golden path at the visitor's scroll position.
+- **Single unified arrow & straight sky launch:** One single glowing arrow rests nocked at Rama's bow, fires straight out horizontally further right into the Hero sky, and then sweeps smoothly downward along the golden path through Stops 1–5. Scrolling back up to the top returns the arrow smoothly back into Rama's bow.
+- **Who starts the bow shot:** Both — the visitor can pull and release the bow (or tap on phones), and if they do nothing for about 5 seconds, Rama shoots automatically.
+- **If the visitor scrolls before shooting:** Rama shoots right away as soon as scrolling begins, and the arrow travels out from the bow and follows the golden path with the scroll position.
 
 ### B. Path & Mouse Trail
-- **Laptop/desktop mouse trail:** Yes — a subtle golden trail follows the mouse cursor and fades away shortly after.
-- **Phones & touch screens:** Off on phones — keep touch screens clean and lightweight with no finger trail.
+- **Laptop/desktop mouse trail:** Removed — keep only the clean scroll-drawn golden arrow path with no extra cursor canvas trail.
+- **Phones & touch screens:** Straight vertical left-edge rail at `x = 28px` with rings on it and cards stacked to the right.
 
-### C. Step Cards
-- **Opening on arrival:** Yes — in every stop scene (1 to 4, plus the Gate login card at Stop 5), the card opens automatically when the arrow reaches that stop, with only one card open at a time.
-- **Closing on scroll away:** Close when leaving — the open card collapses back to its compact pill when the visitor scrolls away from that scene.
+### C. Step Cards & Scene Cleanliness
+- **Auto-open & auto-close on scroll:** Step cards in Stops 1–4 open automatically as the arrow reaches each stop and collapse back to compact pills when scrolling away (one open at a time; manual click/tap and `Escape` also work).
+- **Clean scenes:** Painted characters and props (`sage`, `chariot`, etc.) stay visible from the start, standalone Kurukshetra `wheel` removed, Dawn Lake lotus starts closed (`lotus-bud`) and blooms open (`lotus-open`) as you scroll past, and no extra floating HTML torch/scroll/diya boxes clutter the paintings.
 
 ### D. Hover Reactions (for a later phase)
 - **Enabled reactions (each plays once per hover/activation):**
@@ -52,8 +53,9 @@
   6. Stars twinkle on hover
 
 ### E. The Gate (Final Scene)
-- **Pinned zoom:** Yes — the Gate pins in place for roughly 1 to 1.5 screens of scrolling while the doors slowly fade/open from closed to open, zooms toward the doorway center with a white-gold flash, and reveals the `"Enter the Gurukul"` login card in the light.
-- **Reduced motion fallback:** No pin or zoom; doors start open and the login card is visible immediately.
+- **No sky card/buttons above the gate:** Only the small `"5"` ring sits above the arch peak (`Log in` / `Create your account` buttons removed from the sky card).
+- **Pinned zoom into flash + real login fade-in:** The Gate pins in place as you scroll: first the doors open (`closed` → `open`), then the view zooms deep into the glowing doorway (`1 → 3.4x`) as a white-gold flash fills the screen, and then the real Login / Sign-up screen (`AuthScreen`) fades in inside the light.
+- **Reduced motion fallback:** No pin or zoom; doors start open and the real Login screen is visible immediately.
 
 ### F. Alumni Sign-Up Button
 - **Button behavior:** Clicking the glowing `"Join as alumni"` diya button in Scene 4 (The Dawn Lake) opens the standard sign-up screen, where the visitor can switch to the Alumni role manually.
